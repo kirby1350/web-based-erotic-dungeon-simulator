@@ -55,7 +55,9 @@ export function CharacterCard({ character, onReset }: CharacterCardProps) {
   const [showBody, setShowBody] = useState(false)
   const [showStatus, setShowStatus] = useState(false)
 
-  const hasStatusEffects = character.statusEffects.length > 0
+  const statusEffects = character.statusEffects ?? []
+  const bodyDevelopment = character.bodyDevelopment ?? { breast: 0, clitoris: 0, urethra: 0, vagina: 0, anus: 0 }
+  const hasStatusEffects = statusEffects.length > 0
 
   return (
     <div className="border-b border-border">
@@ -192,7 +194,7 @@ export function CharacterCard({ character, onReset }: CharacterCardProps) {
             <div className="space-y-2">
               <div className="text-[10px] text-muted-foreground/60 tracking-widest uppercase px-0.5">开发度</div>
               {(Object.keys(BODY_PART_LABELS) as BodyPart[]).map((part) => {
-                const level = character.bodyDevelopment[part]
+                const level = bodyDevelopment[part]
                 return (
                   <div key={part} className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground w-10 flex-shrink-0">{BODY_PART_LABELS[part]}</span>
@@ -221,7 +223,7 @@ export function CharacterCard({ character, onReset }: CharacterCardProps) {
             </span>
             {hasStatusEffects && (
               <span className="bg-yellow-500/20 text-yellow-400 text-[10px] px-1.5 py-0.5 rounded-full">
-                {character.statusEffects.length}
+                {statusEffects.length}
               </span>
             )}
           </div>
@@ -232,7 +234,7 @@ export function CharacterCard({ character, onReset }: CharacterCardProps) {
           <div className="px-3 pb-3">
             {hasStatusEffects ? (
               <div className="space-y-2">
-                {character.statusEffects.map((effect) => (
+                {statusEffects.map((effect) => (
                   <div key={effect.id} className="bg-yellow-500/5 border border-yellow-500/20 rounded-lg px-3 py-2">
                     <div className="text-xs font-semibold text-yellow-400 mb-0.5">{effect.title}</div>
                     <div className="text-[11px] text-muted-foreground leading-relaxed">{effect.description}</div>
