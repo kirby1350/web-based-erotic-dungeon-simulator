@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 
 interface TrapGeneratorProps {
   character: Character
-  settings: { chatModel: string; chatApiKey: string }
+  settings: { chatModel: string; chatApiKey: string; grokApiKey?: string }
   onConfirm: (text: string) => void
   onClose: () => void
 }
@@ -73,6 +73,7 @@ export function TrapGenerator({ character, settings, onConfirm, onClose }: TrapG
           ],
           model: settings.chatModel,
           apiKey: settings.chatApiKey,
+          grokApiKey: settings.grokApiKey ?? '',
         }),
       })
 

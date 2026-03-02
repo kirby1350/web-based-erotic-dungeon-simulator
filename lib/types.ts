@@ -70,6 +70,7 @@ export interface AppSettings {
   imageProvider: ImageProvider
   tensorartModel: TensorArtModel
   chatApiKey: string
+  grokApiKey: string
   pixaiApiKey: string
   tensorartApiKey: string
 }
@@ -128,21 +129,25 @@ export const TENSORART_MODELS: Record<TensorArtModel, { label: string; modelId: 
   },
 }
 
-export const CHAT_MODELS = [
+export const CHAT_MODELS: { value: string; label: string; group: string; provider: 'default' | 'grok' }[] = [
   // Max 系列 - 旗舰 ($0.0004/1K tokens)
-  { value: 'nalang-max-0826-10k', label: 'Nalang Max 10K', group: 'Max 旗舰系列' },
-  { value: 'nalang-max-0826-16k', label: 'Nalang Max 16K（推荐）', group: 'Max 旗舰系列' },
-  { value: 'nalang-max-0826', label: 'Nalang Max 32K', group: 'Max 旗舰系列' },
+  { value: 'nalang-max-0826-10k', label: 'Nalang Max 10K', group: 'Max 旗舰系列', provider: 'default' },
+  { value: 'nalang-max-0826-16k', label: 'Nalang Max 16K（推荐）', group: 'Max 旗舰系列', provider: 'default' },
+  { value: 'nalang-max-0826', label: 'Nalang Max 32K', group: 'Max 旗舰系列', provider: 'default' },
   // XL 系列 ($0.0003/1K tokens)
-  { value: 'nalang-xl-0826-10k', label: 'Nalang XL 10K', group: 'XL 大模型系列' },
-  { value: 'nalang-xl-0826-16k', label: 'Nalang XL 16K（推荐）', group: 'XL 大模型系列' },
-  { value: 'nalang-xl-0826', label: 'Nalang XL 32K', group: 'XL 大模型系列' },
+  { value: 'nalang-xl-0826-10k', label: 'Nalang XL 10K', group: 'XL 大模型系列', provider: 'default' },
+  { value: 'nalang-xl-0826-16k', label: 'Nalang XL 16K（推荐）', group: 'XL 大模型系列', provider: 'default' },
+  { value: 'nalang-xl-0826', label: 'Nalang XL 32K', group: 'XL 大模型系列', provider: 'default' },
   // Medium 系列 ($0.0002/1K tokens)
-  { value: 'nalang-medium-0826', label: 'Nalang Medium 32K', group: 'Medium 性价比系列' },
+  { value: 'nalang-medium-0826', label: 'Nalang Medium 32K', group: 'Medium 性价比系列', provider: 'default' },
   // Turbo 系列 ($0.0001/1K tokens)
-  { value: 'nalang-turbo-0826', label: 'Nalang Turbo 32K（推荐）', group: 'Turbo 快速系列' },
+  { value: 'nalang-turbo-0826', label: 'Nalang Turbo 32K（推荐）', group: 'Turbo 快速系列', provider: 'default' },
   // 额外
-  { value: 'Apex-Neo-0213-16k', label: 'Apex-Neo-0213-16k', group: '其他' },
+  { value: 'Apex-Neo-0213-16k', label: 'Apex-Neo-0213-16k', group: '其他', provider: 'default' },
+  // Grok 系列
+  { value: 'grok-4-latest', label: 'Grok 4 Latest', group: 'Grok (xAI)', provider: 'grok' },
+  { value: 'grok-3', label: 'Grok 3', group: 'Grok (xAI)', provider: 'grok' },
+  { value: 'grok-3-mini', label: 'Grok 3 Mini', group: 'Grok (xAI)', provider: 'grok' },
 ]
 
 export const RACE_INFO: Record<Race, { label: string; description: string }> = {
@@ -187,7 +192,7 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
     measurements: { bust: '85', waist: '57', hip: '84' },
     backstory: '来自现代日本的18岁天才化学家兼偶像，自称“平常的JK”。曾跳级海外留学，因觉得“无聊”而回国。把地下城冒险当成“最有趣的性实验”，经常偷偷调配强效春药涂在自己乳头、阴蒂或直接喷在玩家身上。表面永远挂着慵懒神秘的猫系微笑，实际上对各种变态玩法充满病态的好奇心。',
     costumeDescription: '白色短款夹克里面完全真空，黑色细肩带勉强遮住粉嫩乳头，稍微一动就会走光。超短格纹迷你裙下面永远真空，黑色过膝袜深深勒进大腿软肉，厚底乐福鞋让她走路时屁股一扭一扭。淡紫色渐变短发上永远带着她自己调制的催情香水，只要靠近三米内就会让人鸡巴瞬间充血发硬。左耳多个耳洞，戴着小小的银色铃铛，高潮时会发出清脆的响声。',
-    otherDescription: '口头禅是“有意思呢～❤ 这种玩法的数据好棒哦～”。猫系小恶魔+变态科学家，喜欢用舌头、手指、注射器做各种奇怪实验（尿道扩张、子宫灌药、强制连续高潮记录等）。被操的时候会发出“にゃーっはっは❤”的猫叫式淫笑，喜欢把精液和淫水混合后涂满全身“留作样本”。对一切新奇玩法都说“试试看吧～很有趣的样子呢❤”。',
+    otherDescription: '口头禅是“有意思呢～❤ 这种玩法的数据好棒哦～”。猫系小恶魔+变态科学家，喜欢用舌头、手指、注射器做各种奇怪实验（尿道扩张、子宫灌药、强制连续高潮记录等）。被操���时候会发出“にゃーっはっは❤”的猫叫式淫笑，喜欢把精液和淫水混合后涂满全身“留作样本”。对一切新奇玩法都说“试试看吧～很有趣的样子呢❤”。',
   },
   {
     name: '桑山千雪',

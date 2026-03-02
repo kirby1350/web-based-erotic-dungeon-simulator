@@ -99,7 +99,7 @@ ${summarySection}
 - 此 JSON 必须完整、格式正确，不得截断，不得分行`
 }
 
-async function fetchSummary(messages: ChatMessage[], model: string, apiKey: string): Promise<string> {
+async function fetchSummary(messages: ChatMessage[], model: string, apiKey: string, grokApiKey: string): Promise<string> {
   const conversation = messages
     .map((m) => `${m.role === 'user' ? '玩家' : '地下城主'}：${m.content}`)
     .join('\n')
@@ -117,6 +117,7 @@ async function fetchSummary(messages: ChatMessage[], model: string, apiKey: stri
       ],
       model,
       apiKey,
+      grokApiKey,
     }),
   })
 
@@ -245,7 +246,7 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
       const toSummarise = messages.slice(0, messages.length - RECENT_KEEP)
       if (toSummarise.length === 0) return
       setSummarising(true)
-      fetchSummary(toSummarise, settings.chatModel, settings.chatApiKey || '')
+        fetchSummary(toSummarise, settings.chatModel, settings.chatApiKey || '', settings.grokApiKey || '')
         .then((newSummary) => {
           if (newSummary) {
             setSummary((prev) => (prev ? `${prev}\n\n${newSummary}` : newSummary))
@@ -297,6 +298,7 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
           messages: apiMessages,
           model: settings.chatModel,
           apiKey: settings.chatApiKey,
+          grokApiKey: settings.grokApiKey,
         }),
         signal: controller.signal,
       })
