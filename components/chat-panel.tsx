@@ -115,15 +115,51 @@ async function fetchSummary(messages: ChatMessage[], model: string, apiKey: stri
   return text.trim()
 }
 
+// Extract the JSON object from [STATS:{...}] by counting balanced braces
+function extractStatsJson(text: string): string | null {
+  const marker = text.indexOf('[STATS:')
+  if (marker === -1) return null
+  const start = text.indexOf('{', marker)
+  if (start === -1) return null
+  let depth = 0
+  for (let i = start; i < text.length; i++) {
+    if (text[i] === '{') depth++
+    else if (text[i] === '}') {
+      depth--
+      if (depth === 0) return text.slice(start, i + 1)
+    }
+  }
+  return null
+}
+
 // Strip [STATS:...] and [SCENE:...] and [OPTIONS]...[/OPTIONS] from display text
 function cleanContent(content: string): string {
-  return content
-    .replace(/\[SCENE:[^\]]*\]/gi, '')
-    .replace(/\[STATS:\{[^}]*(?:\{[^}]*\}[^}]*)?\}[^\]]*\]/gi, '')
-    .replace(/\[STATS:[\s\S]*?\]\s*/gi, '')
-    .replace(/\[OPTIONS\][\s\S]*?\[\/OPTIONS\]/gi, '')
-    .replace(/\}\]$/, '')   // trailing remnant }]
-    .trim()
+  // Remove [OPTIONS]...[/OPTIONS]
+  let out = content.replace(/\[OPTIONS\][\s\S]*?\[\/OPTIONS\]/gi, '')
+  // Remove [SCENE:...]
+  out = out.replace(/\[SCENE:[^\]]*\]/gi, '')
+  // Remove [STATS:{...}] by finding balanced braces
+  const marker = out.indexOf('[STATS:')
+  if (marker !== -1) {
+    const braceStart = out.indexOf('{', marker)
+    if (braceStart !== -1) {
+      let depth = 0
+      for (let i = braceStart; i < out.length; i++) {
+        if (out[i] === '{') depth++
+        else if (out[i] === '}') {
+          depth--
+          if (depth === 0) {
+            // Remove from [STATS: to the closing ] after the }
+            const closeTag = out.indexOf(']', i)
+            const end = closeTag !== -1 ? closeTag + 1 : i + 1
+            out = out.slice(0, marker) + out.slice(end)
+            break
+          }
+        }
+      }
+    }
+  }
+  return out.trim()
 }
 
 // Parse options from [OPTIONS]...[/OPTIONS] block
@@ -243,11 +279,11 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
         }
       }
 
-      // Parse [STATS:...] and update character
-      const statsMatch = fullText.match(/\[STATS:\s*(\{[\s\S]*?\})\s*\]/)
-      if (statsMatch) {
+      // Parse [STATS:...] and update character using balanced-brace extraction
+      const statsJson = extractStatsJson(fullText)
+      if (statsJson) {
         try {
-          const stats = JSON.parse(statsMatch[1])
+          const stats = JSON.parse(statsJson)
           const updates: Partial<Character> = {}
           if (typeof stats.hp === 'number') updates.hp = Math.max(0, Math.min(character.maxHp, stats.hp))
           if (typeof stats.pleasure === 'number') updates.pleasure = Math.max(0, Math.min(100, stats.pleasure))
