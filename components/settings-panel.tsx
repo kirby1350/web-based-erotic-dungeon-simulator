@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { X, Settings, Key, Bot, Palette } from 'lucide-react'
-import { AppSettings, CHAT_MODELS, IMAGE_MODELS, IMAGE_STYLES, ImageStyle, ImageModel } from '@/lib/types'
+import { AppSettings, CHAT_MODELS, IMAGE_MODELS, IMAGE_STYLES, TENSORART_MODELS, ImageStyle, ImageModel, TensorArtModel, ImageProvider } from '@/lib/types'
 import { saveSettings } from '@/lib/storage'
 import { cn } from '@/lib/utils'
 
@@ -132,47 +132,119 @@ export function SettingsPanel({ settings, onSettingsChange, onClose }: SettingsP
             </>
           ) : (
             <>
-              {/* PixAI API Key */}
+              {/* Image Provider Toggle */}
               <div>
-                <label className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
-                  <Key className="w-3.5 h-3.5" />
-                  PixAI API Key
-                </label>
-                <input
-                  type="password"
-                  value={local.pixaiApiKey}
-                  onChange={(e) => update({ pixaiApiKey: e.target.value })}
-                  placeholder="留空则使用环境变量中的 Key"
-                  className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-primary transition-colors"
-                />
-              </div>
-
-              {/* Image Model */}
-              <div>
-                <label className="text-xs text-muted-foreground mb-2 block">图片模型</label>
-                <div className="space-y-2">
-                  {(Object.keys(IMAGE_MODELS) as ImageModel[]).map((key) => (
+                <label className="text-xs text-muted-foreground mb-2 block">图片生成服务</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    { key: 'pixai', label: 'PixAI' },
+                    { key: 'tensorart', label: 'TensorArt' },
+                  ] as { key: ImageProvider; label: string }[]).map(({ key, label }) => (
                     <button
                       key={key}
-                      onClick={() => update({ imageModel: key })}
+                      onClick={() => update({ imageProvider: key })}
                       className={cn(
-                        'w-full text-left px-3 py-2.5 rounded-lg border text-xs transition-all',
-                        local.imageModel === key
+                        'px-3 py-2 rounded-lg border text-xs font-semibold transition-all',
+                        (local.imageProvider ?? 'pixai') === key
                           ? 'border-primary bg-primary/10 text-primary'
                           : 'border-border bg-secondary text-muted-foreground hover:border-primary/50'
                       )}
                     >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div>{IMAGE_MODELS[key].label}</div>
-                          <div className="text-muted-foreground/60 text-[10px] mt-0.5">ID: {IMAGE_MODELS[key].modelId}</div>
-                        </div>
-                        {local.imageModel === key && <span className="text-primary">✓</span>}
-                      </div>
+                      {label}
                     </button>
                   ))}
                 </div>
               </div>
+
+              {(local.imageProvider ?? 'pixai') === 'pixai' ? (
+                <>
+                  {/* PixAI API Key */}
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
+                      <Key className="w-3.5 h-3.5" />
+                      PixAI API Key
+                    </label>
+                    <input
+                      type="password"
+                      value={local.pixaiApiKey}
+                      onChange={(e) => update({ pixaiApiKey: e.target.value })}
+                      placeholder="留空则使用环境变量中的 Key"
+                      className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-primary transition-colors"
+                    />
+                  </div>
+
+                  {/* PixAI Model */}
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-2 block">PixAI 模型</label>
+                    <div className="space-y-2">
+                      {(Object.keys(IMAGE_MODELS) as ImageModel[]).map((key) => (
+                        <button
+                          key={key}
+                          onClick={() => update({ imageModel: key })}
+                          className={cn(
+                            'w-full text-left px-3 py-2.5 rounded-lg border text-xs transition-all',
+                            local.imageModel === key
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'border-border bg-secondary text-muted-foreground hover:border-primary/50'
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div>{IMAGE_MODELS[key].label}</div>
+                              <div className="text-muted-foreground/60 text-[10px] mt-0.5">ID: {IMAGE_MODELS[key].modelId}</div>
+                            </div>
+                            {local.imageModel === key && <span className="text-primary">✓</span>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* TensorArt API Key */}
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
+                      <Key className="w-3.5 h-3.5" />
+                      TensorArt API Key
+                    </label>
+                    <input
+                      type="password"
+                      value={local.tensorartApiKey ?? ''}
+                      onChange={(e) => update({ tensorartApiKey: e.target.value })}
+                      placeholder="留空则使用环境变量中的 Key"
+                      className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-primary transition-colors"
+                    />
+                  </div>
+
+                  {/* TensorArt Model */}
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-2 block">TensorArt 模型</label>
+                    <div className="space-y-2">
+                      {(Object.keys(TENSORART_MODELS) as TensorArtModel[]).map((key) => (
+                        <button
+                          key={key}
+                          onClick={() => update({ tensorartModel: key })}
+                          className={cn(
+                            'w-full text-left px-3 py-2.5 rounded-lg border text-xs transition-all',
+                            (local.tensorartModel ?? 'wai_nsfw_v16') === key
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'border-border bg-secondary text-muted-foreground hover:border-primary/50'
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div>{TENSORART_MODELS[key].label}</div>
+                              <div className="text-muted-foreground/60 text-[10px] mt-0.5">ID: {TENSORART_MODELS[key].modelId}</div>
+                            </div>
+                            {(local.tensorartModel ?? 'wai_nsfw_v16') === key && <span className="text-primary">✓</span>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Image Style */}
               <div>

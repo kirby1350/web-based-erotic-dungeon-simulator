@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { Image as ImageIcon, Loader2, RefreshCw, Wand2, ChevronDown, ChevronUp } from 'lucide-react'
-import { AppSettings, IMAGE_MODELS, IMAGE_STYLES, Character } from '@/lib/types'
+import { AppSettings, IMAGE_MODELS, IMAGE_STYLES, TENSORART_MODELS, Character } from '@/lib/types'
 
 interface ImagePanelProps {
   settings: AppSettings
@@ -24,7 +24,8 @@ export function ImagePanel({ settings, character, pendingScene, onSceneHandled }
   const [showPromptBox, setShowPromptBox] = useState(false)
   const [activeImage, setActiveImage] = useState<string | null>(null)
 
-  const pollTask = useCallback(async (taskId: string): Promise<string[]> => {
+  // PixAI polling
+  const pollPixai = useCallback(async (taskId: string): Promise<string[]> => {
     const key = settings.pixaiApiKey || ''
     for (let i = 0; i < 120; i++) {
       await new Promise((r) => setTimeout(r, 1000))
@@ -39,48 +40,89 @@ export function ImagePanel({ settings, character, pendingScene, onSceneHandled }
         if (urls.length > 0) return urls
         throw new Error('图片生成完成但未返回 URL')
       }
-      if (status === 'failed') {
-        throw new Error('图片生成失败')
-      }
-      // waiting / running — continue polling
+      if (status === 'failed') throw new Error('PixAI 图片生成失败')
     }
     throw new Error('图片生成超时（120s）')
   }, [settings.pixaiApiKey])
+
+  // TensorArt polling — status: CREATED / WAITING / RUNNING / SUCCESS / FAILED
+  const pollTensorart = useCallback(async (jobId: string): Promise<string[]> => {
+    const key = settings.tensorartApiKey || ''
+    for (let i = 0; i < 120; i++) {
+      await new Promise((r) => setTimeout(r, 1000))
+      const res = await fetch(`/api/image/tensorart/${jobId}`, {
+        headers: key ? { 'x-tensorart-key': key } : {},
+      })
+      if (!res.ok) throw new Error(`TensorArt 轮询失败: ${res.status}`)
+      const data = await res.json()
+      const status: string = data?.job?.status ?? ''
+      if (status === 'SUCCESS') {
+        const urls: string[] = data?.job?.successInfo?.images?.map((img: { url: string }) => img.url) ?? []
+        if (urls.length > 0) return urls
+        throw new Error('TensorArt 生成完成但未返回图片 URL')
+      }
+      if (status === 'FAILED') throw new Error('TensorArt 图片生成失败')
+    }
+    throw new Error('TensorArt 图片生成超时（120s）')
+  }, [settings.tensorartApiKey])
 
   const generateImage = useCallback(async (prompt: string) => {
     setLoading(true)
     setError(null)
     try {
-      const modelId = (IMAGE_MODELS[settings.imageModel] ?? IMAGE_MODELS['haruka_v2']).modelId
       const styleTags = (IMAGE_STYLES[settings.imageStyle] ?? IMAGE_STYLES['none']).tags
       const customTags = settings.imageStyleCustom?.trim() ?? ''
       const allStyleTags = [styleTags, customTags].filter(Boolean).join(', ')
       const finalPrompt = allStyleTags ? `${prompt}, ${allStyleTags}` : prompt
 
-      const res = await fetch('/api/image/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompts: finalPrompt,
-          modelId,
-          width: 768,
-          height: 1280,
-          batchSize: 4,
-          apiKey: settings.pixaiApiKey,
-        }),
-      })
+      const provider = settings.imageProvider ?? 'pixai'
+      let imageUrls: string[]
 
-      if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error || '请求失败')
+      if (provider === 'tensorart') {
+        const taModel = TENSORART_MODELS[settings.tensorartModel] ?? TENSORART_MODELS['wai_nsfw_v16']
+        const res = await fetch('/api/image/tensorart', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompts: finalPrompt,
+            modelId: taModel.modelId,
+            width: 768,
+            height: 1280,
+            apiKey: settings.tensorartApiKey,
+          }),
+        })
+        if (!res.ok) {
+          const err = await res.json()
+          throw new Error(err.error || 'TensorArt 请求失败')
+        }
+        const data = await res.json()
+        const jobId: string = data?.job?.id
+        if (!jobId) throw new Error('未获取到 TensorArt Job ID')
+        imageUrls = await pollTensorart(jobId)
+      } else {
+        const modelId = (IMAGE_MODELS[settings.imageModel] ?? IMAGE_MODELS['haruka_v2']).modelId
+        const res = await fetch('/api/image/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompts: finalPrompt,
+            modelId,
+            width: 768,
+            height: 1280,
+            batchSize: 4,
+            apiKey: settings.pixaiApiKey,
+          }),
+        })
+        if (!res.ok) {
+          const err = await res.json()
+          throw new Error(err.error || 'PixAI 请求失败')
+        }
+        const data = await res.json()
+        const taskId: string = data?.id
+        if (!taskId) throw new Error('未获取到 PixAI 任务 ID')
+        imageUrls = await pollPixai(taskId)
       }
 
-      const data = await res.json()
-      const taskId: string = data?.id
-      if (!taskId) throw new Error('未获取到任务 ID')
-
-      const imageUrls = await pollTask(taskId)
-      // Show first image as active, store all
       setImages((prev) => [
         ...imageUrls.map((url) => ({ url, prompt })),
         ...prev,
@@ -91,7 +133,7 @@ export function ImagePanel({ settings, character, pendingScene, onSceneHandled }
     } finally {
       setLoading(false)
     }
-  }, [settings, pollTask])
+  }, [settings, pollPixai, pollTensorart])
 
   const handleAutoGenerate = useCallback(async () => {
     if (!pendingScene) return

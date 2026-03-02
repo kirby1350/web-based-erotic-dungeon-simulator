@@ -61,13 +61,20 @@ export interface GeneratedImage {
 export type ImageStyle = 'none' | 'dk.senie' | 'hakai_shin' | 'shiokonbu' | 'piromizu' | 'nohito' | 'masami_chie'
 export type ImageModel = 'haruka_v2' | 'jankuv5' | 'wai_nsfw'
 
+export type ImageProvider = 'pixai' | 'tensorart'
+
+export type TensorArtModel = 'wai_nsfw_v16' | 'jankuv6'
+
 export interface AppSettings {
   chatModel: string
   imageModel: ImageModel
   imageStyle: ImageStyle
   imageStyleCustom: string
+  imageProvider: ImageProvider
+  tensorartModel: TensorArtModel
   chatApiKey: string
   pixaiApiKey: string
+  tensorartApiKey: string
 }
 
 export const IMAGE_MODELS: Record<ImageModel, { label: string; modelId: string }> = {
@@ -110,6 +117,17 @@ export const IMAGE_STYLES: Record<ImageStyle, { label: string; tags: string }> =
   masami_chie: {
     label: 'masami chie',
     tags: 'masami chie, soft lineart, delicate shading, warm palette, detailed illustration',
+  },
+}
+
+export const TENSORART_MODELS: Record<TensorArtModel, { label: string; modelId: string }> = {
+  wai_nsfw_v16: {
+    label: 'WAI-NSFW-V16',
+    modelId: '943946051788787917',
+  },
+  jankuv6: {
+    label: 'JANKUV6',
+    modelId: '934122074308367585',
   },
 }
 
