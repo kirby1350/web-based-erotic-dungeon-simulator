@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Loader2, BookOpen } from 'lucide-react'
+import { Send, Loader2, BookOpen, Square, RotateCcw } from 'lucide-react'
 import { Character, ChatMessage, AppSettings, BodyDevelopment, StatusEffect } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -178,6 +178,8 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
   const [loading, setLoading] = useState(false)
   const [started, setStarted] = useState(false)
   const [latestOptions, setLatestOptions] = useState<string[]>([])
+  const [lastUserInput, setLastUserInput] = useState<string>('')
+  const abortRef = useRef<AbortController | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -207,7 +209,13 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
   const sendMessage = useCallback(async (userText: string, isStart = false) => {
     if (loading) return
 
+    // Cancel any previous request
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
     setLatestOptions([])
+    if (!isStart) setLastUserInput(userText)
 
     const userMsg: ChatMessage = {
       role: 'user',
@@ -240,6 +248,7 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
           model: settings.chatModel,
           apiKey: settings.chatApiKey,
         }),
+        signal: controller.signal,
       })
 
       if (!res.ok) {
@@ -278,12 +287,9 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
 
       // Parse [STATS]
       const statsJson = extractStatsJson(fullText)
-      console.log('[v0] fullText tail:', fullText.slice(-300))
-      console.log('[v0] statsJson extracted:', statsJson)
       if (statsJson) {
         try {
           const stats = JSON.parse(statsJson)
-          console.log('[v0] stats parsed:', stats)
           const updates: Partial<Character> = {}
           if (typeof stats.hp === 'number') updates.hp = Math.max(0, Math.min(character.maxHp, stats.hp))
           if (typeof stats.pleasure === 'number') updates.pleasure = Math.max(0, Math.min(100, stats.pleasure))
@@ -305,11 +311,7 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
           }
           console.log('[v0] onCharacterUpdate called with:', updates)
           if (Object.keys(updates).length > 0) onCharacterUpdate(updates)
-        } catch (err) {
-          console.log('[v0] JSON.parse failed:', err, 'json was:', statsJson)
-        }
-      } else {
-        console.log('[v0] No [STATS:] block found in response')
+        } catch { }
       }
 
       // Parse options
@@ -325,7 +327,11 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
         }
         onRequestImage(tags)
       }
-    } catch (e) {
+    } catch (e: unknown) {
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        // User stopped generation — do nothing
+        return
+      }
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', content: `出错了：${String(e)}`, timestamp: Date.now() },
@@ -463,18 +469,40 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="输入你的行动...（越色情越好，例如：我主动张开腿求触手操我）"
+            placeholder="输入你的行动或选择..."
             rows={2}
             disabled={loading || summarising}
             className="flex-1 bg-secondary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors resize-none disabled:opacity-50"
           />
-          <button
-            onClick={() => input.trim() && sendMessage(input.trim())}
-            disabled={loading || summarising || !input.trim()}
-            className="p-2.5 rounded-lg bg-primary text-primary-foreground glow-btn disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
-          >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          </button>
+          <div className="flex flex-col gap-1.5 flex-shrink-0">
+            {loading ? (
+              <button
+                onClick={() => abortRef.current?.abort()}
+                title="停止生成"
+                className="p-2.5 rounded-lg bg-red-600/80 text-white hover:bg-red-600 transition-all"
+              >
+                <Square className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                onClick={() => input.trim() && sendMessage(input.trim())}
+                disabled={summarising || !input.trim()}
+                className="p-2.5 rounded-lg bg-primary text-primary-foreground glow-btn disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            )}
+            {!loading && lastUserInput && (
+              <button
+                onClick={() => sendMessage(lastUserInput)}
+                disabled={summarising}
+                title="重试上一条"
+                className="p-2.5 rounded-lg border border-border bg-secondary text-muted-foreground hover:text-foreground hover:border-primary/50 disabled:opacity-40 transition-all"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
         <p className="text-xs text-muted-foreground mt-1 px-1">按 Enter 发送，Shift+Enter 换行</p>
       </div>

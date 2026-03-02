@@ -57,8 +57,8 @@ export interface GeneratedImage {
   timestamp: number
 }
 
-export type ImageStyle = 'none' | 'dk.senie' | 'hakai_shin'
-export type ImageModel = 'haruka_v2'
+export type ImageStyle = 'none' | 'dk.senie' | 'hakai_shin' | 'shiokonbu' | 'piromizu' | 'nohito'
+export type ImageModel = 'haruka_v2' | 'jankuv5' | 'wai_nsfw'
 
 export interface AppSettings {
   chatModel: string
@@ -73,17 +73,37 @@ export const IMAGE_MODELS: Record<ImageModel, { label: string; modelId: string }
     label: 'Haruka v2',
     modelId: '1861558740588989558',
   },
+  jankuv5: {
+    label: 'JANKUV5',
+    modelId: '1935381284613355700',
+  },
+  wai_nsfw: {
+    label: 'WAI-NSFW-illustrious-SDXL',
+    modelId: '1799568502408553127',
+  },
 }
 
 export const IMAGE_STYLES: Record<ImageStyle, { label: string; tags: string }> = {
   none: { label: '无', tags: '' },
   'dk.senie': {
-    label: 'dk.senie 风格',
+    label: 'dk.senie',
     tags: 'dk.senie, watercolor, soft lineart, pastel colors, dreamy lighting',
   },
   hakai_shin: {
-    label: 'Hakai Shin 风格',
+    label: 'Hakai Shin',
     tags: 'hakai_shin, detailed shading, dynamic pose, vibrant colors, anime illustration',
+  },
+  shiokonbu: {
+    label: 'shiokonbu',
+    tags: 'shiokonbu, detailed lineart, soft shading, moe style, clean illustration',
+  },
+  piromizu: {
+    label: 'piromizu',
+    tags: 'piromizu, glossy skin, detailed body, soft gradient, erotic illustration',
+  },
+  nohito: {
+    label: 'nohito',
+    tags: 'nohito, expressive face, fine details, dramatic lighting, anime art style',
   },
 }
 
