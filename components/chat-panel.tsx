@@ -278,9 +278,12 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
 
       // Parse [STATS]
       const statsJson = extractStatsJson(fullText)
+      console.log('[v0] fullText tail:', fullText.slice(-300))
+      console.log('[v0] statsJson extracted:', statsJson)
       if (statsJson) {
         try {
           const stats = JSON.parse(statsJson)
+          console.log('[v0] stats parsed:', stats)
           const updates: Partial<Character> = {}
           if (typeof stats.hp === 'number') updates.hp = Math.max(0, Math.min(character.maxHp, stats.hp))
           if (typeof stats.pleasure === 'number') updates.pleasure = Math.max(0, Math.min(100, stats.pleasure))
@@ -288,7 +291,7 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
           if (stats.bodyDevelopment && typeof stats.bodyDevelopment === 'object') {
             const prev = character.bodyDevelopment ?? { breast: 0, clitoris: 0, urethra: 0, vagina: 0, anus: 0 }
             const bd: BodyDevelopment = { ...prev }
-              ; (['breast', 'clitoris', 'urethra', 'vagina', 'anus'] as const).forEach((key) => {
+              ;(['breast', 'clitoris', 'urethra', 'vagina', 'anus'] as const).forEach((key) => {
                 if (typeof stats.bodyDevelopment[key] === 'number') {
                   bd[key] = Math.max(0, Math.min(5, stats.bodyDevelopment[key]))
                 }
@@ -300,8 +303,13 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
               (s) => s && typeof s.id === 'string' && typeof s.title === 'string'
             )
           }
+          console.log('[v0] onCharacterUpdate called with:', updates)
           if (Object.keys(updates).length > 0) onCharacterUpdate(updates)
-        } catch { }
+        } catch (err) {
+          console.log('[v0] JSON.parse failed:', err, 'json was:', statsJson)
+        }
+      } else {
+        console.log('[v0] No [STATS:] block found in response')
       }
 
       // Parse options
