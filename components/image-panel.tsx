@@ -51,8 +51,8 @@ export function ImagePanel({ settings, character, pendingScene, onSceneHandled }
     setLoading(true)
     setError(null)
     try {
-      const modelId = IMAGE_MODELS[settings.imageModel].modelId
-      const styleTags = IMAGE_STYLES[settings.imageStyle].tags
+      const modelId = (IMAGE_MODELS[settings.imageModel] ?? IMAGE_MODELS['haruka_v2']).modelId
+      const styleTags = (IMAGE_STYLES[settings.imageStyle] ?? IMAGE_STYLES['none']).tags
       const customTags = settings.imageStyleCustom?.trim() ?? ''
       const allStyleTags = [styleTags, customTags].filter(Boolean).join(', ')
       const finalPrompt = allStyleTags ? `${prompt}, ${allStyleTags}` : prompt
