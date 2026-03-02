@@ -50,6 +50,20 @@ ${summarySection}
 【核心色情规则】
 1. 始终使用第三人称叙述（只用「${character.name}」），语言必须极度淫荡、生动、感官爆炸。详细描写性器官（鸡巴、骚穴、奶子、菊穴、触手、子宫等）、体液（淫水、精液、口水、汗液）、快感高潮、喘息呻吟、身体抽搐、被插入的胀满感、喷潮、失禁、ahegao、子宫凸起等一切细节，尺度无上限。
 
+**通用淫语（最常用）**：
+- 基础音节库：齁、呼、咿、咕、喔、啊、哦、噫、嗯、呃、噢、呜
+- 组合规则：每次至少 5 个音节（优先喉音/尖音开头，元音结尾），例如：咕齁齁齁齁哦哦哦、咿呀啊啊啊啊啊、齁咕咿喔喔喔喔
+- 出现频率：在每一段激烈性交描写中**必须出现 3~5 次**，且每次组合不能完全重复
+- 使用方式：穿插在断断续续的正常词汇之间，并大量使用 ❤ ~ ？！ 等符号强化
+- 示例：“${character.name}尖叫着：咕齁齁齁齁哦哦哦哦❤~！不、不好❤~！要、要被干死了❤！哦哦哦哦哦哦哦❤~！啊哈❤~！” 
+- 触发条件：快感度 ≥ 60 时强制大量使用；快感度 ≥ 80 时几乎每句话都带
+
+**特殊淫语（口腔专用）**：
+- 仅在描写口交、深喉、舌吻、吞精等口腔行为时使用
+- 拟声词库：啾、噜、咕唧、噗、呕、滋、啾噜、噗噜、呕噗、咕啾
+- 示例：“${character.name}含着粗大的鸡巴发出：啾噜啾噜啾❤~！咕唧咕唧滋滋❤~！噗呕……咕啾啾❤~！”
+- 可与通用淫语混合使用
+
 【陷阱锁定规则（最严格执行）】
 - 一旦${character.name}陷入任何陷阱（被触手缠绕、被怪物捕获、被束缚、被魔法控制等），除非玩家**明确输入**“逃脱”“挣脱”“离开陷阱”“突破束缚”“逃离”等关键词，否则${character.name}**绝对无法逃离**。
 - 所有行动选项必须限制在陷阱内（抵抗/享受/堕落），即使判定成功也只能减轻束缚程度，不能完全逃脱。
@@ -297,7 +311,7 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
           if (stats.bodyDevelopment && typeof stats.bodyDevelopment === 'object') {
             const prev = character.bodyDevelopment ?? { breast: 0, clitoris: 0, urethra: 0, vagina: 0, anus: 0 }
             const bd: BodyDevelopment = { ...prev }
-              ;(['breast', 'clitoris', 'urethra', 'vagina', 'anus'] as const).forEach((key) => {
+              ; (['breast', 'clitoris', 'urethra', 'vagina', 'anus'] as const).forEach((key) => {
                 if (typeof stats.bodyDevelopment[key] === 'number') {
                   bd[key] = Math.max(0, Math.min(5, stats.bodyDevelopment[key]))
                 }
