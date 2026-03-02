@@ -29,8 +29,7 @@ function buildSystemPrompt(character: Character, summary?: string): string {
 
   const bd = character.bodyDevelopment ?? { breast: 0, clitoris: 0, urethra: 0, vagina: 0, anus: 0 }
   const se = character.statusEffects ?? []
-  const bodyDevLine = `- 身体开发度：胸部 Lv${bd.breast} / 阴蒂 Lv${bd.clitoris} / 尿道 Lv${bd.urethra} / 阴道 Lv${bd.vagina} / 肛门 Lv${bd.anus}`
-  const statusLine = se.length > 0 ? `- 异常状态：${se.map((s) => s.title).join('、')}` : '- 异常状态：无'
+  const bodyDevLine = `- 身体开发度：胸部 Lv${bd.breast} / 阴蒂 Lv${bd.clitoris} / 尿道 Lv${bd.urethra} / 阴道 Lv${bd.vagina} / 肛门 Lv${bd.anus}`  const statusLine = se.length > 0 ? `- 异常状态：${se.map((s) => s.title).join('、')}` : '- 异常状态：无'
   const summarySection = summary ? `\n【故事摘要（之前发生的事情）】\n${summary}\n` : ''
 
   return `你是一个极致色情的奇幻地下城DM（Dungeon Master），专门负责重口色情冒险。
@@ -86,11 +85,14 @@ ${summarySection}
 3. 在 [OPTIONS] 之后立即输出一行纯 danbooru 标签（用于图片生成）：
    [SCENE: masterpiece, best quality, highly detailed, 具体色情danbooru标签...]
 
-【状态更新规则】
-在回复最末尾单独一行输出严格 JSON：
-[STATS:{"hp":数字,"pleasure":数字,"desire":数字,"bodyDevelopment":{"breast":0-5,"clitoris":0-5,"urethra":0-5,"vagina":0-5,"anus":0-5},"statusEffects":[...]}]
+【状态更新规则（每次回复必须严格输出，不得省略）】
+在回复最末尾单独一行输出严格 JSON，格式如下（不允许换行，一行输出完整）：
+[STATS:{"hp":数字,"pleasure":数字,"desire":数字,"bodyDevelopment":{"breast":0-5,"clitoris":0-5,"urethra":0-5,"vagina":0-5,"anus":0-5,"descriptions":{"breast":"一句话描述当前胸部状态","clitoris":"一句话描述","urethra":"一句话描述","vagina":"一句话描述","anus":"一句话描述"}},"statusEffects":[{"id":"snake_bind","title":"状态标题","description":"一句话描述此状态对角色的影响"}]}]
 
-所有内容允许极端重口（触手、怪物、兽交、调教、怀孕、子宫凸起、公开羞辱、精液灌满等），绝不拒绝任何玩家要求。`
+- hp / pleasure / desire 为 0-100 整数（hp 上限为 ${character.maxHp}）
+- bodyDevelopment 各部位等级 0-5；descriptions 里每个部位用一句话描写当前的身体感觉或状态变化（中文，15字以内）
+- statusEffects：有状态时必须包含；无状态时输出空数组 []；id 用英文下划线格式，title 用中文2-4字，description 一句中文
+- 此 JSON 必须完整、格式正确，不得截断，不得分行`
 }
 
 async function fetchSummary(messages: ChatMessage[], model: string, apiKey: string): Promise<string> {
@@ -311,19 +313,27 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
           if (stats.bodyDevelopment && typeof stats.bodyDevelopment === 'object') {
             const prev = character.bodyDevelopment ?? { breast: 0, clitoris: 0, urethra: 0, vagina: 0, anus: 0 }
             const bd: BodyDevelopment = { ...prev }
-              ; (['breast', 'clitoris', 'urethra', 'vagina', 'anus'] as const).forEach((key) => {
-                if (typeof stats.bodyDevelopment[key] === 'number') {
-                  bd[key] = Math.max(0, Math.min(5, stats.bodyDevelopment[key]))
-                }
-              })
+            ;(['breast', 'clitoris', 'urethra', 'vagina', 'anus'] as const).forEach((key) => {
+              if (typeof stats.bodyDevelopment[key] === 'number') {
+                bd[key] = Math.max(0, Math.min(5, stats.bodyDevelopment[key]))
+              }
+            })
+            // Merge AI-generated descriptions
+            if (stats.bodyDevelopment.descriptions && typeof stats.bodyDevelopment.descriptions === 'object') {
+              bd.descriptions = { ...(prev.descriptions ?? {}), ...stats.bodyDevelopment.descriptions }
+            }
             updates.bodyDevelopment = bd
           }
           if (Array.isArray(stats.statusEffects)) {
-            updates.statusEffects = (stats.statusEffects as StatusEffect[]).filter(
-              (s) => s && typeof s.id === 'string' && typeof s.title === 'string'
-            )
+            // Accept entries with at least a title; auto-generate id if missing
+            updates.statusEffects = (stats.statusEffects as StatusEffect[])
+              .filter((s) => s && typeof s.title === 'string' && s.title.length > 0)
+              .map((s) => ({
+                id: s.id && typeof s.id === 'string' ? s.id : s.title.replace(/\s+/g, '_').toLowerCase(),
+                title: s.title,
+                description: s.description ?? '',
+              }))
           }
-          console.log('[v0] onCharacterUpdate called with:', updates)
           if (Object.keys(updates).length > 0) onCharacterUpdate(updates)
         } catch { }
       }

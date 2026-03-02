@@ -55,8 +55,8 @@ export function CharacterCard({ character, onReset }: CharacterCardProps) {
   const [showBody, setShowBody] = useState(false)
   const [showStatus, setShowStatus] = useState(false)
 
-  const statusEffects = character.statusEffects ?? []
-  const bodyDevelopment = character.bodyDevelopment ?? { breast: 0, clitoris: 0, urethra: 0, vagina: 0, anus: 0 }
+  const statusEffects = character?.statusEffects ?? []
+  const bodyDevelopment = character?.bodyDevelopment ?? { breast: 0, clitoris: 0, urethra: 0, vagina: 0, anus: 0 }
   const hasStatusEffects = statusEffects.length > 0
 
   return (
@@ -195,13 +195,17 @@ export function CharacterCard({ character, onReset }: CharacterCardProps) {
               <div className="text-[10px] text-muted-foreground/60 tracking-widest uppercase px-0.5">开发度</div>
               {(Object.keys(BODY_PART_LABELS) as BodyPart[]).map((part) => {
                 const level = bodyDevelopment[part]
+                const aiDesc = bodyDevelopment.descriptions?.[part]
+                const staticDesc = DEVELOPMENT_DESCRIPTIONS[level] ?? '未开发'
                 return (
-                  <div key={part} className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground w-10 flex-shrink-0">{BODY_PART_LABELS[part]}</span>
-                    <DevelopmentDots level={level} />
-                    <span className="text-[10px] text-muted-foreground/60 ml-1">
-                      {DEVELOPMENT_DESCRIPTIONS[level]}
-                    </span>
+                  <div key={part} className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground w-10 flex-shrink-0">{BODY_PART_LABELS[part]}</span>
+                      <DevelopmentDots level={level} />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground/70 leading-snug pl-12">
+                      {aiDesc || staticDesc}
+                    </p>
                   </div>
                 )
               })}

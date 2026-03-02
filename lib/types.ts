@@ -15,11 +15,12 @@ export interface CharacterMeasurements {
 export type BodyPart = 'breast' | 'clitoris' | 'urethra' | 'vagina' | 'anus'
 
 export interface BodyDevelopment {
-  breast: number    // 胸部 0-5
-  clitoris: number  // 阴蒂 0-5
-  urethra: number   // 尿道 0-5
-  vagina: number    // 阴道 0-5
-  anus: number      // 肛门 0-5
+  breast: number
+  clitoris: number
+  urethra: number
+  vagina: number
+  anus: number
+  descriptions?: Partial<Record<BodyPart, string>>
 }
 
 export interface StatusEffect {
