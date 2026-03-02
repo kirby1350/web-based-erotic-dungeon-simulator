@@ -23,7 +23,7 @@ export function saveSettings(settings: AppSettings): void {
 
 export function getDefaultSettings(): AppSettings {
   return {
-    chatModel: 'nalang-xl-0826-16k',
+    chatModel: 'nalang-max-0826-16k',
     imageModel: 'haruka_v2',
     imageStyle: 'none',
     chatApiKey: '',
