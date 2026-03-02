@@ -29,7 +29,8 @@ function buildSystemPrompt(character: Character, summary?: string): string {
 
   const bd = character.bodyDevelopment ?? { breast: 0, clitoris: 0, urethra: 0, vagina: 0, anus: 0 }
   const se = character.statusEffects ?? []
-  const bodyDevLine = `- 身体开发度：胸部 Lv${bd.breast} / 阴蒂 Lv${bd.clitoris} / 尿道 Lv${bd.urethra} / 阴道 Lv${bd.vagina} / 肛门 Lv${bd.anus}`  const statusLine = se.length > 0 ? `- 异常状态：${se.map((s) => s.title).join('、')}` : '- 异常状态：无'
+  const bodyDevLine = `- 身体开发度：胸部 Lv${bd.breast} / 阴蒂 Lv${bd.clitoris} / 尿道 Lv${bd.urethra} / 阴道 Lv${bd.vagina} / 肛门 Lv${bd.anus}`
+  const statusLine = se.length > 0 ? `- 异常状态：${se.map((s) => s.title).join('、')}` : '- 异常状态：无'
   const summarySection = summary ? `\n【故事摘要（之前发生的事情）】\n${summary}\n` : ''
 
   return `你是一个极致色情的奇幻地下城DM（Dungeon Master），专门负责重口色情冒险。
