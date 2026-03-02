@@ -57,7 +57,7 @@ export interface GeneratedImage {
   timestamp: number
 }
 
-export type ImageStyle = 'none' | 'dk.senie' | 'hakai_shin' | 'shiokonbu' | 'piromizu' | 'nohito' | 'masami' | 'chie'
+export type ImageStyle = 'none' | 'dk.senie' | 'hakai_shin' | 'shiokonbu' | 'piromizu' | 'nohito' | 'masami_chie'
 export type ImageModel = 'haruka_v2' | 'jankuv5' | 'wai_nsfw'
 
 export interface AppSettings {
@@ -106,13 +106,9 @@ export const IMAGE_STYLES: Record<ImageStyle, { label: string; tags: string }> =
     label: 'nohito',
     tags: 'nohito, expressive face, fine details, dramatic lighting, anime art style',
   },
-  masami: {
-    label: 'masami',
-    tags: 'masami, soft watercolor, delicate linework, warm tones, detailed eyes',
-  },
-  chie: {
-    label: 'chie',
-    tags: 'chie, bold lineart, vivid colors, clean shading, expressive illustration',
+  masami_chie: {
+    label: 'masami chie',
+    tags: 'masami chie, soft lineart, delicate shading, warm palette, detailed illustration',
   },
 }
 
