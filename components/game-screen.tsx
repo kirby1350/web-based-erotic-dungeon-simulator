@@ -14,7 +14,8 @@ interface GameScreenProps {
   onReset: () => void
 }
 
-export function GameScreen({ character, onReset }: GameScreenProps) {
+export function GameScreen({ character: initialCharacter, onReset }: GameScreenProps) {
+  const [character, setCharacter] = useState<Character>(initialCharacter)
   const [settings, setSettings] = useState<AppSettings>(() => getSettings())
   const [showSettings, setShowSettings] = useState(false)
   const [pendingScene, setPendingScene] = useState<string | undefined>()
@@ -22,12 +23,15 @@ export function GameScreen({ character, onReset }: GameScreenProps) {
 
   const handleRequestImage = useCallback((scene: string) => {
     setPendingScene(scene)
-    // On mobile, auto-switch to image tab to show the prompt
     setActiveTab('image')
   }, [])
 
   const handleSceneHandled = useCallback(() => {
     setPendingScene(undefined)
+  }, [])
+
+  const handleCharacterUpdate = useCallback((updates: Partial<Character>) => {
+    setCharacter((prev) => ({ ...prev, ...updates }))
   }, [])
 
   return (
@@ -56,6 +60,7 @@ export function GameScreen({ character, onReset }: GameScreenProps) {
                 character={character}
                 settings={settings}
                 onRequestImage={handleRequestImage}
+                onCharacterUpdate={handleCharacterUpdate}
               />
             </div>
           </div>
@@ -73,7 +78,6 @@ export function GameScreen({ character, onReset }: GameScreenProps) {
 
         {/* Mobile: tabbed layout */}
         <div className="flex md:hidden flex-col flex-1 overflow-hidden">
-          {/* Tab bar */}
           <div className="flex border-b border-border flex-shrink-0">
             {[
               { key: 'chat', label: '冒险日志' },
@@ -93,16 +97,15 @@ export function GameScreen({ character, onReset }: GameScreenProps) {
             ))}
           </div>
 
-          {/* Character card (always shown on mobile) */}
           <CharacterCard character={character} onReset={onReset} />
 
-          {/* Tab content */}
           <div className="flex-1 overflow-hidden">
             {activeTab === 'chat' ? (
               <ChatPanel
                 character={character}
                 settings={settings}
                 onRequestImage={handleRequestImage}
+                onCharacterUpdate={handleCharacterUpdate}
               />
             ) : (
               <ImagePanel
@@ -116,7 +119,6 @@ export function GameScreen({ character, onReset }: GameScreenProps) {
         </div>
       </div>
 
-      {/* Settings panel */}
       {showSettings && (
         <SettingsPanel
           settings={settings}
