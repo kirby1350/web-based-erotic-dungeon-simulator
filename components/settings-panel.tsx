@@ -95,26 +95,38 @@ export function SettingsPanel({ settings, onSettingsChange, onClose }: SettingsP
                   <Bot className="w-3.5 h-3.5" />
                   对话模型
                 </label>
-                <div className="space-y-2">
-                  {CHAT_MODELS.map((m) => (
-                    <button
-                      key={m.value}
-                      onClick={() => update({ chatModel: m.value })}
-                      className={cn(
-                        'w-full text-left px-3 py-2.5 rounded-lg border text-xs transition-all',
-                        local.chatModel === m.value
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border bg-secondary text-muted-foreground hover:border-primary/50'
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span>{m.label}</span>
-                        {local.chatModel === m.value && (
-                          <span className="text-primary">✓</span>
-                        )}
+                <div className="space-y-3">
+                  {(() => {
+                    const groups: Record<string, typeof CHAT_MODELS> = {}
+                    CHAT_MODELS.forEach((m) => {
+                      if (!groups[m.group]) groups[m.group] = []
+                      groups[m.group].push(m)
+                    })
+                    return Object.entries(groups).map(([groupName, models]) => (
+                      <div key={groupName}>
+                        <div className="text-[10px] text-muted-foreground/50 uppercase tracking-widest mb-1.5 px-1">{groupName}</div>
+                        <div className="space-y-1">
+                          {models.map((m) => (
+                            <button
+                              key={m.value}
+                              onClick={() => update({ chatModel: m.value })}
+                              className={cn(
+                                'w-full text-left px-3 py-2 rounded-lg border text-xs transition-all',
+                                local.chatModel === m.value
+                                  ? 'border-primary bg-primary/10 text-primary'
+                                  : 'border-border bg-secondary text-muted-foreground hover:border-primary/50'
+                              )}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span>{m.label}</span>
+                                {local.chatModel === m.value && <span className="text-primary text-xs">✓</span>}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </button>
-                  ))}
+                    ))
+                  })()}
                 </div>
               </div>
             </>

@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { Upload, User, Sword, Wand2, Shield } from 'lucide-react'
-import { Character, Race, RACE_INFO, CharacterStats } from '@/lib/types'
+import { Character, Race, RACE_INFO, CharacterStats, CharacterMeasurements } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 interface CharacterCreatorProps {
@@ -19,6 +19,7 @@ export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
   const [name, setName] = useState('')
   const [race, setRace] = useState<Race>('human')
   const [stats, setStats] = useState<CharacterStats>({ strength: 5, agility: 5, intelligence: 5 })
+  const [measurements, setMeasurements] = useState<CharacterMeasurements>({ bust: '', waist: '', hip: '' })
   const [backstory, setBackstory] = useState('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
@@ -71,6 +72,7 @@ export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
       name: name.trim(),
       race,
       stats: finalStats,
+      measurements,
       backstory: backstory.trim(),
       avatarUrl,
       level: 1,
@@ -194,6 +196,36 @@ export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
               <span className="text-sm font-semibold text-foreground">{RACE_INFO[race].label}</span>
             </div>
             <p className="text-xs text-muted-foreground">{RACE_INFO[race].description}</p>
+          </div>
+
+          {/* Measurements 三围 */}
+          <div>
+            <label className="text-xs text-muted-foreground mb-3 block tracking-wider">三围（厘米，选填）</label>
+            <div className="grid grid-cols-3 gap-3">
+              {(
+                [
+                  { key: 'bust', label: '胸围', placeholder: '如 88' },
+                  { key: 'waist', label: '腰围', placeholder: '如 60' },
+                  { key: 'hip', label: '臀围', placeholder: '如 90' },
+                ] as { key: keyof CharacterMeasurements; label: string; placeholder: string }[]
+              ).map(({ key, label, placeholder }) => (
+                <div key={key}>
+                  <label className="text-[11px] text-muted-foreground/70 mb-1 block text-center">{label}</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={30}
+                      max={200}
+                      value={measurements[key]}
+                      onChange={(e) => setMeasurements((prev) => ({ ...prev, [key]: e.target.value }))}
+                      placeholder={placeholder}
+                      className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-center focus:outline-none focus:border-primary transition-colors pr-7"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground/60">cm</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Stats */}

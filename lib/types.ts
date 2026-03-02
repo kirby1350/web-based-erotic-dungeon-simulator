@@ -6,10 +6,17 @@ export interface CharacterStats {
   intelligence: number
 }
 
+export interface CharacterMeasurements {
+  bust: string    // 胸围 cm
+  waist: string   // 腰围 cm
+  hip: string     // 臀围 cm
+}
+
 export interface Character {
   name: string
   race: Race
   stats: CharacterStats
+  measurements: CharacterMeasurements
   backstory: string
   avatarUrl: string | null
   level: number
@@ -55,12 +62,20 @@ export const IMAGE_STYLES: Record<ImageStyle, { label: string; lora?: string }> 
 }
 
 export const CHAT_MODELS = [
-  { value: 'gpt-4o', label: 'GPT-4o' },
-  { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
-  { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
-  { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' },
-  { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
-  { value: 'Apex-Neo-0213-16k', label: 'Apex-Neo-0213-16k' },
+  // Max 系列 - 旗舰 ($0.0004/1K tokens)
+  { value: 'nalang-max-0826-10k', label: 'Nalang Max 10K', group: 'Max 旗舰系列' },
+  { value: 'nalang-max-0826-16k', label: 'Nalang Max 16K（推荐）', group: 'Max 旗舰系列' },
+  { value: 'nalang-max-0826', label: 'Nalang Max 32K', group: 'Max 旗舰系列' },
+  // XL 系列 ($0.0003/1K tokens)
+  { value: 'nalang-xl-0826-10k', label: 'Nalang XL 10K', group: 'XL 大模型系列' },
+  { value: 'nalang-xl-0826-16k', label: 'Nalang XL 16K（推荐）', group: 'XL 大模型系列' },
+  { value: 'nalang-xl-0826', label: 'Nalang XL 32K', group: 'XL 大模型系列' },
+  // Medium 系列 ($0.0002/1K tokens)
+  { value: 'nalang-medium-0826', label: 'Nalang Medium 32K', group: 'Medium 性价比系列' },
+  // Turbo 系列 ($0.0001/1K tokens)
+  { value: 'nalang-turbo-0826', label: 'Nalang Turbo 32K（推荐）', group: 'Turbo 快速系列' },
+  // 额外
+  { value: 'Apex-Neo-0213-16k', label: 'Apex-Neo-0213-16k', group: '其他' },
 ]
 
 export const RACE_INFO: Record<Race, { label: string; description: string; bonuses: Partial<CharacterStats> }> = {
