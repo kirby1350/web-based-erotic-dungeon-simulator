@@ -16,20 +16,6 @@ interface GeneratedImage {
   prompt: string
 }
 
-function buildImagePrompt(scene: string, character: Character, style: string): string {
-  const racePrompts: Record<string, string> = {
-    human: 'human adventurer',
-    elf: 'elf adventurer, pointed ears',
-    tauren: 'tauren warrior, bull horns, massive build',
-  }
-  const raceTag = racePrompts[character.race] || 'adventurer'
-  const base = `${scene}, ${raceTag}, dungeon, fantasy, dramatic lighting, highly detailed, masterpiece, best quality`
-  if (style && style !== 'none') {
-    return `${base}, ${style} style`
-  }
-  return base
-}
-
 export function ImagePanel({ settings, character, pendingScene, onSceneHandled }: ImagePanelProps) {
   const [images, setImages] = useState<GeneratedImage[]>([])
   const [loading, setLoading] = useState(false)
@@ -38,29 +24,27 @@ export function ImagePanel({ settings, character, pendingScene, onSceneHandled }
   const [showPromptBox, setShowPromptBox] = useState(false)
   const [activeImage, setActiveImage] = useState<string | null>(null)
 
-  const pollTask = useCallback(async (taskId: string): Promise<string | null> => {
+  const pollTask = useCallback(async (taskId: string): Promise<string[]> => {
     const key = settings.pixaiApiKey || ''
-    for (let i = 0; i < 60; i++) {
-      await new Promise((r) => setTimeout(r, 3000))
-      try {
-        const res = await fetch(`/api/image/task/${taskId}`, {
-          headers: key ? { 'x-pixai-key': key } : {},
-        })
-        const data = await res.json()
-        const status = data?.status || data?.task?.status
-        const outputs = data?.outputs || data?.task?.outputs
-        if (status === 'succeeded' && outputs) {
-          const urls = Object.values(outputs).flat() as string[]
-          if (urls[0]) return urls[0]
-        }
-        if (status === 'failed') {
-          throw new Error('图片生成失败')
-        }
-      } catch (e) {
-        throw e
+    for (let i = 0; i < 120; i++) {
+      await new Promise((r) => setTimeout(r, 1000))
+      const res = await fetch(`/api/image/task/${taskId}`, {
+        headers: key ? { 'x-pixai-key': key } : {},
+      })
+      if (!res.ok) throw new Error(`轮询失败: ${res.status}`)
+      const data = await res.json()
+      const status: string = data?.status
+      if (status === 'completed') {
+        const urls: string[] = data?.outputs?.mediaUrls ?? []
+        if (urls.length > 0) return urls
+        throw new Error('图片生成完成但未返回 URL')
       }
+      if (status === 'failed') {
+        throw new Error('图片生成失败')
+      }
+      // waiting / running — continue polling
     }
-    throw new Error('图片生成超时')
+    throw new Error('图片生成超时（120s）')
   }, [settings.pixaiApiKey])
 
   const generateImage = useCallback(async (prompt: string) => {
@@ -68,10 +52,8 @@ export function ImagePanel({ settings, character, pendingScene, onSceneHandled }
     setError(null)
     try {
       const modelId = IMAGE_MODELS[settings.imageModel].modelId
-      const styleLora = settings.imageStyle !== 'none' ? settings.imageStyle : undefined
-      const finalPrompt = styleLora
-        ? `${prompt}, ${styleLora}`
-        : prompt
+      const styleTag = settings.imageStyle !== 'none' ? `, ${settings.imageStyle}` : ''
+      const finalPrompt = `${prompt}${styleTag}`
 
       const res = await fetch('/api/image/generate', {
         method: 'POST',
@@ -80,8 +62,8 @@ export function ImagePanel({ settings, character, pendingScene, onSceneHandled }
           prompts: finalPrompt,
           modelId,
           width: 768,
-          height: 1024,
-          batchSize: 1,
+          height: 1280,
+          batchSize: 4,
           apiKey: settings.pixaiApiKey,
         }),
       })
@@ -92,14 +74,16 @@ export function ImagePanel({ settings, character, pendingScene, onSceneHandled }
       }
 
       const data = await res.json()
-      const taskId = data?.id || data?.task?.id
-      if (!taskId) throw new Error('未获取到任务ID')
+      const taskId: string = data?.id
+      if (!taskId) throw new Error('未获取到任务 ID')
 
-      const imageUrl = await pollTask(taskId)
-      if (imageUrl) {
-        setImages((prev) => [{ url: imageUrl, prompt }, ...prev.slice(0, 9)])
-        setActiveImage(imageUrl)
-      }
+      const imageUrls = await pollTask(taskId)
+      // Show first image as active, store all
+      setImages((prev) => [
+        ...imageUrls.map((url) => ({ url, prompt })),
+        ...prev,
+      ].slice(0, 20))
+      setActiveImage(imageUrls[0])
     } catch (e) {
       setError(String(e))
     } finally {
@@ -109,16 +93,13 @@ export function ImagePanel({ settings, character, pendingScene, onSceneHandled }
 
   const handleAutoGenerate = useCallback(async () => {
     if (!pendingScene) return
-    const prompt = buildImagePrompt(pendingScene, character, settings.imageStyle)
     onSceneHandled()
-    await generateImage(prompt)
-  }, [pendingScene, character, settings.imageStyle, onSceneHandled, generateImage])
+    await generateImage(pendingScene)
+  }, [pendingScene, onSceneHandled, generateImage])
 
   const handleCustomGenerate = async () => {
-    const prompt = customPrompt.trim()
-      ? buildImagePrompt(customPrompt, character, settings.imageStyle)
-      : buildImagePrompt('dungeon entrance, mysterious', character, settings.imageStyle)
-    await generateImage(prompt)
+    const rawPrompt = customPrompt.trim() || 'dungeon entrance, mysterious stone corridor, torchlight, dark fantasy'
+    await generateImage(rawPrompt)
   }
 
   return (

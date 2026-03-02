@@ -136,10 +136,56 @@ export function ChatPanel({ character, settings, onRequestImage }: ChatPanelProp
         }
       }
 
-      // Check for scene prompt
+      // Convert scene to danbooru tags via chat API then trigger image generation
       const sceneMatch = fullText.match(/\[SCENE:\s*([^\]]+)\]/)
       if (sceneMatch) {
-        onRequestImage(sceneMatch[1].trim())
+        const sceneDesc = sceneMatch[1].trim()
+        try {
+          const tagRes = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              messages: [
+                {
+                  role: 'system',
+                  content: 'You are a danbooru tag expert. Convert the given scene description into concise danbooru-style image generation tags. Output ONLY the comma-separated tags, no explanations. Always include quality tags: masterpiece, best quality, highly detailed. Include appropriate character, environment and atmosphere tags.',
+                },
+                {
+                  role: 'user',
+                  content: `Convert to danbooru tags: "${sceneDesc}"`,
+                },
+              ],
+              model: settings.chatModel,
+              apiKey: settings.chatApiKey,
+            }),
+          })
+          if (tagRes.ok) {
+            const tagReader = tagRes.body!.getReader()
+            const tagDecoder = new TextDecoder()
+            let tagText = ''
+            while (true) {
+              const { done, value } = await tagReader.read()
+              if (done) break
+              const chunk = tagDecoder.decode(value)
+              for (const line of chunk.split('\n')) {
+                if (line.startsWith('data: ')) {
+                  const d = line.slice(6).trim()
+                  if (d === '[DONE]') continue
+                  try {
+                    const parsed = JSON.parse(d)
+                    tagText += parsed.choices?.[0]?.delta?.content || ''
+                  } catch { /* ignore */ }
+                }
+              }
+            }
+            const tags = tagText.trim()
+            onRequestImage(tags || sceneDesc)
+          } else {
+            onRequestImage(sceneDesc)
+          }
+        } catch {
+          onRequestImage(sceneDesc)
+        }
       }
     } catch (e) {
       const errMsg: ChatMessage = {
