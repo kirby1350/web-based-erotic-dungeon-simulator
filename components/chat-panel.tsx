@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Loader2, BookOpen, Square, RotateCcw } from 'lucide-react'
+import { Send, Loader2, BookOpen, Square, RotateCcw, Wrench, Zap } from 'lucide-react'
 import { Character, ChatMessage, AppSettings, BodyDevelopment, StatusEffect } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { TrapGenerator } from '@/components/trap-generator'
 
 const SUMMARY_THRESHOLD = 10
 const RECENT_KEEP = 4
@@ -226,6 +227,8 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
   const [started, setStarted] = useState(false)
   const [latestOptions, setLatestOptions] = useState<string[]>([])
   const [lastUserInput, setLastUserInput] = useState<string>('')
+  const [showToolMenu, setShowToolMenu] = useState(false)
+  const [showTrapGenerator, setShowTrapGenerator] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -416,6 +419,16 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
     }
   }, [loading, messages, character, summary, settings, onRequestImage, onCharacterUpdate])
 
+  useEffect(() => {
+    if (!showToolMenu) return
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('[data-tool-menu]')) setShowToolMenu(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showToolMenu])
+
   const startAdventure = async () => {
     setStarted(true)
     await sendMessage('开始冒险', true)
@@ -449,6 +462,19 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
 
   return (
     <div className="h-full flex flex-col">
+      {/* Trap Generator Modal */}
+      {showTrapGenerator && (
+        <TrapGenerator
+          character={character}
+          settings={settings}
+          onConfirm={(text) => {
+            setShowTrapGenerator(false)
+            setInput(text)
+            textareaRef.current?.focus()
+          }}
+          onClose={() => setShowTrapGenerator(false)}
+        />
+      )}
       {/* Summary indicator */}
       {(summary || summarising) && (
         <div className="px-4 py-2 border-b border-border flex items-center gap-2 text-xs text-muted-foreground bg-secondary/30">
@@ -539,6 +565,34 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
       {/* Input */}
       <div className="p-3 border-t border-border">
         <div className="flex gap-2 items-end">
+          {/* Tool button */}
+          <div className="relative flex-shrink-0" data-tool-menu>
+            <button
+              onClick={() => setShowToolMenu((v) => !v)}
+              title="工具"
+              disabled={loading || summarising}
+              className={cn(
+                'p-2.5 rounded-lg border border-border bg-secondary text-muted-foreground hover:text-foreground hover:border-primary/50 disabled:opacity-40 transition-all',
+                showToolMenu && 'border-primary/60 text-primary bg-primary/10'
+              )}
+            >
+              <Wrench className="w-4 h-4" />
+            </button>
+            {showToolMenu && (
+              <div className="absolute bottom-full left-0 mb-2 w-44 bg-card border border-border rounded-lg shadow-lg overflow-hidden z-10">
+                <button
+                  onClick={() => {
+                    setShowToolMenu(false)
+                    setShowTrapGenerator(true)
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-left hover:bg-secondary transition-colors"
+                >
+                  <Zap className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                  <span>随机陷阱生成器</span>
+                </button>
+              </div>
+            )}
+          </div>
           <textarea
             ref={textareaRef}
             value={input}
