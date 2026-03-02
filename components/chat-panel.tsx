@@ -38,13 +38,14 @@ function buildSystemPrompt(character: Character, summary?: string): string {
 【玩家角色信息】
 - 名字：${character.name}
 - 种族：${raceMap[character.race]}
-- 力量：${character.stats.strength} / 敏捷：${character.stats.agility} / 智力：${character.stats.intelligence}
 - 等级：${character.level} | 生命值：${character.hp}/${character.maxHp}
 - 快感度：${character.pleasure}/100 | 欲望值：${character.desire}/100
 ${measurementLine}
 ${bodyDevLine}
 ${statusLine}
-${character.backstory ? `- 背景故事：${character.backstory}` : ''}
+${character.backstory ? `\n【人物设定】\n${character.backstory}` : ''}
+${character.costumeDescription ? `\n【服装设定】\n${character.costumeDescription}` : ''}
+${character.otherDescription ? `\n【其他设定】\n${character.otherDescription}` : ''}
 ${summarySection}
 
 【核心色情规则】

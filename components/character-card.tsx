@@ -1,10 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Character, BodyPart } from '@/lib/types'
-import { RACE_INFO } from '@/lib/types'
+import { Character, BodyPart, RACE_INFO } from '@/lib/types'
 import {
-  Heart, Shield, Zap, Brain, RotateCcw,
+  Heart, RotateCcw,
   Flame, Sparkles, ChevronDown, ChevronUp,
   AlertTriangle,
 } from 'lucide-react'
@@ -40,9 +39,7 @@ function DevelopmentDots({ level }: { level: number }) {
           key={i}
           className={cn(
             'w-2.5 h-2.5 rounded-sm transition-colors',
-            i < level
-              ? 'bg-pink-500'
-              : 'bg-secondary border border-border/60'
+            i < level ? 'bg-pink-500' : 'bg-secondary border border-border/60'
           )}
         />
       ))}
@@ -64,7 +61,6 @@ export function CharacterCard({ character, onReset }: CharacterCardProps) {
       {/* Base info */}
       <div className="p-3">
         <div className="flex items-center gap-3 mb-3">
-          {/* Avatar */}
           <div className="w-12 h-12 rounded-lg overflow-hidden border border-border flex-shrink-0 bg-secondary">
             {character.avatarUrl ? (
               <img src={character.avatarUrl} alt={character.name} className="w-full h-full object-cover" />
@@ -112,7 +108,7 @@ export function CharacterCard({ character, onReset }: CharacterCardProps) {
         </div>
 
         {/* Pleasure & Desire bars */}
-        <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="grid grid-cols-2 gap-2">
           <div>
             <div className="flex items-center justify-between text-xs mb-1">
               <div className="flex items-center gap-1 text-pink-400">
@@ -122,10 +118,7 @@ export function CharacterCard({ character, onReset }: CharacterCardProps) {
               <span className="text-muted-foreground">{character.pleasure}</span>
             </div>
             <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
-              <div
-                className="h-full bg-pink-500 rounded-full transition-all"
-                style={{ width: `${character.pleasure}%` }}
-              />
+              <div className="h-full bg-pink-500 rounded-full transition-all" style={{ width: `${character.pleasure}%` }} />
             </div>
           </div>
           <div>
@@ -137,27 +130,9 @@ export function CharacterCard({ character, onReset }: CharacterCardProps) {
               <span className="text-muted-foreground">{character.desire}</span>
             </div>
             <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
-              <div
-                className="h-full bg-orange-500 rounded-full transition-all"
-                style={{ width: `${character.desire}%` }}
-              />
+              <div className="h-full bg-orange-500 rounded-full transition-all" style={{ width: `${character.desire}%` }} />
             </div>
           </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-1.5">
-          {[
-            { icon: Shield, label: '力量', value: character.stats.strength, color: 'text-orange-400' },
-            { icon: Zap, label: '敏捷', value: character.stats.agility, color: 'text-green-400' },
-            { icon: Brain, label: '智力', value: character.stats.intelligence, color: 'text-blue-400' },
-          ].map(({ icon: Icon, label, value, color }) => (
-            <div key={label} className="bg-secondary rounded-lg p-2 text-center">
-              <Icon className={`w-3.5 h-3.5 mx-auto mb-0.5 ${color}`} />
-              <div className={`text-sm font-bold ${color}`}>{value}</div>
-              <div className="text-[10px] text-muted-foreground">{label}</div>
-            </div>
-          ))}
         </div>
       </div>
 
@@ -176,14 +151,12 @@ export function CharacterCard({ character, onReset }: CharacterCardProps) {
             {/* Measurements */}
             <div className="grid grid-cols-3 gap-1.5">
               {[
-                { label: '胸围', value: character.measurements.bust },
-                { label: '腰围', value: character.measurements.waist },
-                { label: '臀围', value: character.measurements.hip },
+                { label: '胸围', value: character.measurements?.bust },
+                { label: '腰围', value: character.measurements?.waist },
+                { label: '臀围', value: character.measurements?.hip },
               ].map(({ label, value }) => (
                 <div key={label} className="bg-secondary rounded-lg p-2 text-center">
-                  <div className="text-sm font-bold text-pink-400">
-                    {value ? `${value}` : '—'}
-                  </div>
+                  <div className="text-sm font-bold text-pink-400">{value ? value : '—'}</div>
                   <div className="text-[10px] text-muted-foreground">{label}</div>
                   {value && <div className="text-[9px] text-muted-foreground/50">cm</div>}
                 </div>

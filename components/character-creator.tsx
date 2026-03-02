@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Upload, User, Sword, Wand2, Shield } from 'lucide-react'
-import { Character, Race, RACE_INFO, CharacterStats, CharacterMeasurements } from '@/lib/types'
+import { Upload, Sword, Wand2, Shield, Sparkles } from 'lucide-react'
+import { Character, Race, RACE_INFO, CharacterMeasurements, CHARACTER_PRESETS, CharacterPreset } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 interface CharacterCreatorProps {
@@ -18,22 +18,18 @@ const RACE_ICONS: Record<Race, React.ReactNode> = {
 export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
   const [name, setName] = useState('')
   const [race, setRace] = useState<Race>('human')
-  const [stats, setStats] = useState<CharacterStats>({ strength: 5, agility: 5, intelligence: 5 })
   const [measurements, setMeasurements] = useState<CharacterMeasurements>({ bust: '', waist: '', hip: '' })
   const [backstory, setBackstory] = useState('')
+  const [costumeDescription, setCostumeDescription] = useState('')
+  const [otherDescription, setOtherDescription] = useState('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const totalPoints = stats.strength + stats.agility + stats.intelligence
-  const maxPoints = 20
-
   const handleFileUpload = (file: File) => {
     if (!file.type.startsWith('image/')) return
     const reader = new FileReader()
-    reader.onload = (e) => {
-      setAvatarUrl(e.target?.result as string)
-    }
+    reader.onload = (e) => setAvatarUrl(e.target?.result as string)
     reader.readAsDataURL(file)
   }
 
@@ -44,104 +40,75 @@ export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
     if (file) handleFileUpload(file)
   }
 
-  const adjustStat = (stat: keyof CharacterStats, delta: number) => {
-    setStats((prev) => {
-      const newVal = prev[stat] + delta
-      if (newVal < 1 || newVal > 10) return prev
-      const newTotal = totalPoints + delta
-      if (newTotal > maxPoints) return prev
-      return { ...prev, [stat]: newVal }
-    })
-  }
-
-  const handleRaceChange = (r: Race) => {
-    setRace(r)
-    // Reset stats when race changes
-    setStats({ strength: 5, agility: 5, intelligence: 5 })
+  const applyPreset = (preset: CharacterPreset) => {
+    setName(preset.name)
+    setRace(preset.race)
+    setMeasurements(preset.measurements)
+    setBackstory(preset.backstory)
+    setCostumeDescription(preset.costumeDescription)
+    setOtherDescription(preset.otherDescription)
+    setAvatarUrl(null)
   }
 
   const handleSubmit = () => {
     if (!name.trim()) return
-    const raceBonus = RACE_INFO[race].bonuses
-    const finalStats: CharacterStats = {
-      strength: Math.min(15, stats.strength + (raceBonus.strength || 0)),
-      agility: Math.min(15, stats.agility + (raceBonus.agility || 0)),
-      intelligence: Math.min(15, stats.intelligence + (raceBonus.intelligence || 0)),
-    }
     const character: Character = {
       name: name.trim(),
       race,
-      stats: finalStats,
       measurements,
       backstory: backstory.trim(),
+      costumeDescription: costumeDescription.trim(),
+      otherDescription: otherDescription.trim(),
       avatarUrl,
       level: 1,
       hp: 100,
       maxHp: 100,
       pleasure: 0,
       desire: 0,
-      bodyDevelopment: {
-        breast: 0,
-        clitoris: 0,
-        urethra: 0,
-        vagina: 0,
-        anus: 0,
-      },
+      bodyDevelopment: { breast: 0, clitoris: 0, urethra: 0, vagina: 0, anus: 0 },
       statusEffects: [],
     }
     onComplete(character)
   }
 
-  const StatControl = ({ label, key: statKey }: { label: string; key: keyof CharacterStats }) => {
-    const val = stats[statKey]
-    const bonus = RACE_INFO[race].bonuses[statKey] || 0
-    return (
-      <div className="flex items-center gap-3">
-        <span className="text-muted-foreground text-sm w-20 text-right">{label}</span>
-        <button
-          onClick={() => adjustStat(statKey, -1)}
-          className="w-7 h-7 rounded border border-border bg-secondary hover:border-primary hover:text-primary transition-colors flex items-center justify-center text-lg leading-none"
-          disabled={val <= 1}
-        >
-          −
-        </button>
-        <div className="flex gap-1 items-center">
-          {Array.from({ length: 10 }).map((_, i) => (
-            <div
-              key={i}
-              className={cn(
-                'w-3 h-3 rounded-sm transition-colors',
-                i < val ? 'bg-primary' : 'bg-secondary border border-border'
-              )}
-            />
-          ))}
-        </div>
-        <button
-          onClick={() => adjustStat(statKey, 1)}
-          className="w-7 h-7 rounded border border-border bg-secondary hover:border-primary hover:text-primary transition-colors flex items-center justify-center text-lg leading-none"
-          disabled={val >= 10 || totalPoints >= maxPoints}
-        >
-          +
-        </button>
-        <span className="text-xs gold-text w-8">{val}</span>
-        {bonus > 0 && (
-          <span className="text-xs text-green-400">(+{bonus})</span>
-        )}
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
-        {/* Title */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold gold-text tracking-widest mb-2">地下城探险</h1>
           <p className="text-muted-foreground text-sm tracking-wider">创建你的冒险者</p>
         </div>
 
         <div className="dungeon-border rounded-xl bg-card p-6 space-y-6">
-          {/* Avatar Upload */}
+
+          {/* Presets */}
+          <div>
+            <label className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5 tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-primary/60" />
+              预设角色
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {CHARACTER_PRESETS.map((preset) => (
+                <button
+                  key={preset.name}
+                  onClick={() => applyPreset(preset)}
+                  className={cn(
+                    'flex flex-col items-center gap-1 p-3 rounded-lg border transition-all text-xs',
+                    name === preset.name
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border bg-secondary text-muted-foreground hover:border-primary/50'
+                  )}
+                >
+                  <span className="font-semibold">{preset.name}</span>
+                  <span className="text-[10px] opacity-60">{RACE_INFO[preset.race].label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="border-t border-border/40" />
+
+          {/* Avatar + Name + Race */}
           <div className="flex gap-6 items-start">
             <div
               className={cn(
@@ -175,14 +142,13 @@ export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
                 />
               </div>
 
-              {/* Race Selection */}
               <div>
                 <label className="text-xs text-muted-foreground mb-2 block tracking-wider">选择种族</label>
                 <div className="grid grid-cols-3 gap-2">
                   {(Object.keys(RACE_INFO) as Race[]).map((r) => (
                     <button
                       key={r}
-                      onClick={() => handleRaceChange(r)}
+                      onClick={() => setRace(r)}
                       className={cn(
                         'flex flex-col items-center gap-1 p-2 rounded-lg border transition-all text-xs',
                         race === r
@@ -208,7 +174,7 @@ export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
             <p className="text-xs text-muted-foreground">{RACE_INFO[race].description}</p>
           </div>
 
-          {/* Measurements 三围 */}
+          {/* Measurements */}
           <div>
             <label className="text-xs text-muted-foreground mb-3 block tracking-wider">三围（厘米，选填）</label>
             <div className="grid grid-cols-3 gap-3">
@@ -238,34 +204,42 @@ export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
             </div>
           </div>
 
-          {/* Stats */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-xs text-muted-foreground tracking-wider">属性分配</label>
-              <span className="text-xs text-muted-foreground">
-                已用 <span className={cn('font-bold', totalPoints >= maxPoints ? 'text-red-400' : 'gold-text')}>{totalPoints}</span> / {maxPoints} 点
-              </span>
+          {/* Three description fields */}
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block tracking-wider">人物设定（选填）</label>
+              <textarea
+                value={backstory}
+                onChange={(e) => setBackstory(e.target.value)}
+                placeholder="描述角色的背景故事、性格特点、过往经历..."
+                rows={3}
+                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors resize-none"
+              />
             </div>
-            <div className="space-y-3">
-              <StatControl label="力量" key="strength" />
-              <StatControl label="敏捷" key="agility" />
-              <StatControl label="智力" key="intelligence" />
+
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block tracking-wider">服装设定（选填）</label>
+              <textarea
+                value={costumeDescription}
+                onChange={(e) => setCostumeDescription(e.target.value)}
+                placeholder="描述角色的服装、外貌特征、装备道具..."
+                rows={3}
+                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors resize-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block tracking-wider">其他设定（选填）</label>
+              <textarea
+                value={otherDescription}
+                onChange={(e) => setOtherDescription(e.target.value)}
+                placeholder="其他补充设定，例如特殊能力、癖好、禁忌..."
+                rows={3}
+                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors resize-none"
+              />
             </div>
           </div>
 
-          {/* Backstory */}
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block tracking-wider">人物设定（选填）</label>
-            <textarea
-              value={backstory}
-              onChange={(e) => setBackstory(e.target.value)}
-              placeholder="描述你的角色背景故事、性格特点、过往经历..."
-              rows={3}
-              className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors resize-none"
-            />
-          </div>
-
-          {/* Submit */}
           <button
             onClick={handleSubmit}
             disabled={!name.trim()}
