@@ -26,6 +26,7 @@ export function getDefaultSettings(): AppSettings {
     chatModel: 'nalang-max-0826-16k',
     imageModel: 'haruka_v2',
     imageStyle: 'none',
+    imageStyleCustom: '',
     chatApiKey: '',
     pixaiApiKey: '',
   }

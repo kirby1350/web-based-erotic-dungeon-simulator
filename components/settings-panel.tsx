@@ -200,6 +200,24 @@ export function SettingsPanel({ settings, onSettingsChange, onClose }: SettingsP
                   ))}
                 </div>
               </div>
+
+              {/* Custom Style Tags */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <Palette className="w-3.5 h-3.5" />
+                  自定义风格 Tags
+                </label>
+                <textarea
+                  value={local.imageStyleCustom ?? ''}
+                  onChange={(e) => update({ imageStyleCustom: e.target.value })}
+                  placeholder="输入额外的 danbooru 风格 tags，用英文逗号分隔（会追加到所选画风之后）"
+                  rows={3}
+                  className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-primary transition-colors resize-none"
+                />
+                <p className="text-xs text-muted-foreground/60 mt-1">
+                  示例：flat color, ink, 1990s anime style
+                </p>
+              </div>
             </>
           )}
         </div>
