@@ -136,20 +136,48 @@ async function fetchSummary(messages: ChatMessage[], model: string, apiKey: stri
   return text.trim()
 }
 
+// Extract and merge all sibling JSON objects inside [STATS:...obj1, obj2...]
+// Handles the case where AI splits bodyDevelopment and statusEffects into two objects
 function extractStatsJson(text: string): string | null {
   const marker = text.indexOf('[STATS:')
   if (marker === -1) return null
-  const start = text.indexOf('{', marker)
-  if (start === -1) return null
-  let depth = 0
-  for (let i = start; i < text.length; i++) {
-    if (text[i] === '{') depth++
-    else if (text[i] === '}') {
-      depth--
-      if (depth === 0) return text.slice(start, i + 1)
+
+  // Collect all top-level { } objects between [STATS: and the matching ]
+  const searchStart = marker + '[STATS:'.length
+  const objects: Record<string, unknown>[] = []
+  let i = searchStart
+
+  while (i < text.length) {
+    // Skip whitespace and commas between objects
+    if (text[i] === ' ' || text[i] === '\t' || text[i] === '\n' || text[i] === ',') { i++; continue }
+    // Stop at closing ]
+    if (text[i] === ']') break
+    // Start of an object
+    if (text[i] === '{') {
+      let depth = 0
+      const objStart = i
+      while (i < text.length) {
+        if (text[i] === '{') depth++
+        else if (text[i] === '}') {
+          depth--
+          if (depth === 0) {
+            const objStr = text.slice(objStart, i + 1)
+            try { objects.push(JSON.parse(objStr)) } catch { /* skip malformed */ }
+            i++
+            break
+          }
+        }
+        i++
+      }
+    } else {
+      i++
     }
   }
-  return null
+
+  if (objects.length === 0) return null
+  // Merge all objects into one (later objects override earlier ones for same keys)
+  const merged = Object.assign({}, ...objects)
+  try { return JSON.stringify(merged) } catch { return null }
 }
 
 function cleanContent(content: string): string {
