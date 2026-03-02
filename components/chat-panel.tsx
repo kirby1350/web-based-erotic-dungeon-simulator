@@ -5,9 +5,7 @@ import { Send, Loader2, BookOpen } from 'lucide-react'
 import { Character, ChatMessage, AppSettings, BodyDevelopment, StatusEffect } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
-// How many recent messages to keep in full before triggering a summarisation
 const SUMMARY_THRESHOLD = 10
-// After summary, keep this many recent messages verbatim
 const RECENT_KEEP = 4
 
 interface ChatPanelProps {
@@ -31,15 +29,9 @@ function buildSystemPrompt(character: Character, summary?: string): string {
 
   const bd = character.bodyDevelopment ?? { breast: 0, clitoris: 0, urethra: 0, vagina: 0, anus: 0 }
   const se = character.statusEffects ?? []
-
   const bodyDevLine = `- 身体开发度：胸部 Lv${bd.breast} / 阴蒂 Lv${bd.clitoris} / 尿道 Lv${bd.urethra} / 阴道 Lv${bd.vagina} / 肛门 Lv${bd.anus}`
-  const statusLine = se.length > 0
-    ? `- 异常状态：${se.map((s) => s.title).join('、')}`
-    : '- 异常状态：无'
-
-  const summarySection = summary
-    ? `\n【故事摘要（之前发生的事情）】\n${summary}\n`
-    : ''
+  const statusLine = se.length > 0 ? `- 异常状态：${se.map((s) => s.title).join('、')}` : '- 异常状态：无'
+  const summarySection = summary ? `\n【故事摘要（之前发生的事情）】\n${summary}\n` : ''
 
   return `你是一个极致沉浸的奇幻地下城DM（Dungeon Master）。
 
@@ -55,29 +47,35 @@ ${statusLine}
 ${character.backstory ? `- 背景故事：${character.backstory}` : ''}
 ${summarySection}
 【叙事规则】
-1. 用**中文**第二人称叙述，语言生动沉浸，富有奇幻色彩，深度描写感官细节。
-2. 根据玩家选择推进剧情，提供2-4个行动选项。
+1. 叙述时始终使用角色名「${character.name}」，不使用"你"或"您"。例如："${character.name}感到一阵颤抖..."
+2. 语言生动沉浸，富有奇幻色彩，深度描写感官细节。
 3. 战斗或特殊事件时根据属性、快感度、欲望值综合判定结果，增加随机性与紧张感。
-4. 遭遇重要场景时，在回复**最末尾**添加：[SCENE: 英文场景描述，用于生成图片]
-5. 严格根据故事摘要保持剧情连贯，不得遗忘已发生事件。
+4. 【陷阱规则】当${character.name}陷入陷阱（被束缚、被控制、被怪物捕获等）后，除非玩家明确选择"逃脱"相关的行动，否则${character.name}不会自动逃离陷阱，剧情将持续在陷阱中发展。
+5. 遭遇重要场景时，在正文叙述结束后，输出：[SCENE: 英文场景描述]
+6. 严格根据故事摘要保持剧情连贯，不得遗忘已发生事件。
+
+【选项格式规则（必须严格执行）】
+每次回复，在叙述正文之后、[SCENE] 和 [STATS] 之前，必须输出恰好4个行动选项，格式如下：
+[OPTIONS]
+1. （行动偏向抵抗，尝试挣脱当前陷阱或困境）
+2. （行动偏向抵抗，但不逃离陷阱，在陷阱中强撑/反抗）
+3. （行动偏向享受，顺从地感受当前刺激）
+4. （行动偏向堕落，主动沉沦于陷阱，寻求更多刺激）
+[/OPTIONS]
+每个选项必须是针对当前剧情的具体行动描述，不能过于笼统。
 
 【状态更新规则（必须严格执行）】
-每次回复后，**必须**在最末尾单独一行输出以下 JSON 块（即使没有变化也要输出，填入当前值）：
-[STATS:{"hp":数字,"pleasure":数字,"desire":数字,"bodyDevelopment":{"breast":0-5,"clitoris":0-5,"urethra":0-5,"vagina":0-5,"anus":0-5},"statusEffects":[{"id":"唯一id","title":"状态名称","description":"一句话描述"}]}]
+在回复的最末尾，单独一行输出以下 JSON 块（即使没有变化也必须输出）：
+[STATS:{"hp":数字,"pleasure":数字,"desire":数字,"bodyDevelopment":{"breast":0-5,"clitoris":0-5,"urethra":0-5,"vagina":0-5,"anus":0-5},"statusEffects":[{"id":"唯一id","title":"状态名","description":"一句话描述"}]}]
 
-规则：
-- hp / pleasure / desire 为整数，范围 0-100（hp 最大为 ${character.maxHp}）
-- bodyDevelopment 各部位等级为 0-5 整数，发生对应部位的强烈刺激/开发时增加
-- statusEffects 为数组，若无异常则为空数组 []；若有新状态则添加，若状态消除则从数组移除
-- 快感度和欲望值会随剧情中的性刺激、紧张感、羞耻感等动态变化
-- 此 JSON 块不得出现在叙事正文中，只出现在最末尾，且格式严格正确`
+状态规则：
+- hp / pleasure / desire 为整数（0-100，hp 上限 ${character.maxHp}）
+- bodyDevelopment 各部位 0-5 整数，发生对应刺激时升级
+- statusEffects：新增状态则添加，消除则移除，无异常则为 []
+- 此 JSON 块必须在所有文字内容的最末尾，格式严格正确，不得有额外文字`
 }
 
-async function fetchSummary(
-  messages: ChatMessage[],
-  model: string,
-  apiKey: string
-): Promise<string> {
+async function fetchSummary(messages: ChatMessage[], model: string, apiKey: string): Promise<string> {
   const conversation = messages
     .map((m) => `${m.role === 'user' ? '玩家' : '地下城主'}：${m.content}`)
     .join('\n')
@@ -89,13 +87,9 @@ async function fetchSummary(
       messages: [
         {
           role: 'system',
-          content:
-            '你是一个专业的故事摘要助手。请将给定的地下城冒险对话内容，提炼为一段简洁的第三人称叙述摘要（300字以内），重点记录：发生的关键事件、场景变化、战斗结果、获得的物品/信息、玩家的重要选择。直接输出摘要内容，不要加标题。',
+          content: '你是故事摘要助手。将地下城冒险对话提炼为300字内的第三人称摘要，记录关键事件、场景、战斗结果、重要选择。直接输出摘要，不加标题。',
         },
-        {
-          role: 'user',
-          content: `请总结以下冒险对话：\n\n${conversation}`,
-        },
+        { role: 'user', content: `请总结以下冒险对话：\n\n${conversation}` },
       ],
       model,
       apiKey,
@@ -103,7 +97,6 @@ async function fetchSummary(
   })
 
   if (!res.ok) return ''
-
   const reader = res.body!.getReader()
   const decoder = new TextDecoder()
   let text = ''
@@ -115,14 +108,33 @@ async function fetchSummary(
       if (line.startsWith('data: ')) {
         const d = line.slice(6).trim()
         if (d === '[DONE]') continue
-        try {
-          const parsed = JSON.parse(d)
-          text += parsed.choices?.[0]?.delta?.content || ''
-        } catch { /* ignore */ }
+        try { text += JSON.parse(d).choices?.[0]?.delta?.content || '' } catch { /* ignore */ }
       }
     }
   }
   return text.trim()
+}
+
+// Strip [STATS:...] and [SCENE:...] and [OPTIONS]...[/OPTIONS] from display text
+function cleanContent(content: string): string {
+  return content
+    .replace(/\[SCENE:[^\]]*\]/gi, '')
+    .replace(/\[STATS:\{[^}]*(?:\{[^}]*\}[^}]*)?\}[^\]]*\]/gi, '')
+    .replace(/\[STATS:[\s\S]*?\]\s*/gi, '')
+    .replace(/\[OPTIONS\][\s\S]*?\[\/OPTIONS\]/gi, '')
+    .replace(/\}\]$/, '')   // trailing remnant }]
+    .trim()
+}
+
+// Parse options from [OPTIONS]...[/OPTIONS] block
+function parseOptions(content: string): string[] {
+  const block = content.match(/\[OPTIONS\]([\s\S]*?)\[\/OPTIONS\]/i)
+  if (!block) return []
+  const lines = block[1].split('\n').map((l) => l.trim()).filter(Boolean)
+  return lines
+    .map((l) => l.replace(/^\d+\.\s*/, '').trim())
+    .filter((l) => l.length > 0)
+    .slice(0, 4)
 }
 
 export function ChatPanel({ character, settings, onRequestImage, onCharacterUpdate }: ChatPanelProps) {
@@ -132,6 +144,7 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [started, setStarted] = useState(false)
+  const [latestOptions, setLatestOptions] = useState<string[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -139,9 +152,8 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [messages])
+  }, [messages, latestOptions])
 
-  // Trigger summarisation when message count exceeds threshold
   useEffect(() => {
     const assistantCount = messages.filter((m) => m.role === 'assistant').length
     if (assistantCount > 0 && assistantCount % SUMMARY_THRESHOLD === 0 && !summarising && !loading) {
@@ -162,6 +174,8 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
   const sendMessage = useCallback(async (userText: string, isStart = false) => {
     if (loading) return
 
+    setLatestOptions([])
+
     const userMsg: ChatMessage = {
       role: 'user',
       content: isStart ? '（冒险开始）' : userText,
@@ -179,7 +193,7 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
         role: m.role,
         content:
           m.role === 'user' && m.content === '（冒险开始）'
-            ? `玩家 ${character.name} 踏入了地下城的入口。请开始描述冒险的起始场景，给玩家提供背景介绍和初始选项。`
+            ? `${character.name} 踏入了地下城的入口。请开始描述冒险的起始场景，给出背景介绍和初始选项。`
             : m.content,
       })),
     ]
@@ -200,12 +214,7 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
         throw new Error(err.error || '请求失败')
       }
 
-      const assistantMsg: ChatMessage = {
-        role: 'assistant',
-        content: '',
-        timestamp: Date.now(),
-      }
-
+      const assistantMsg: ChatMessage = { role: 'assistant', content: '', timestamp: Date.now() }
       const allMsgs = [...newMessages, assistantMsg]
       setMessages(allMsgs)
 
@@ -217,31 +226,24 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
         const { done, value } = await reader.read()
         if (done) break
         const chunk = decoder.decode(value)
-        const lines = chunk.split('\n')
-        for (const line of lines) {
+        for (const line of chunk.split('\n')) {
           if (line.startsWith('data: ')) {
             const data = line.slice(6).trim()
             if (data === '[DONE]') continue
             try {
-              const parsed = JSON.parse(data)
-              const delta = parsed.choices?.[0]?.delta?.content || ''
+              const delta = JSON.parse(data).choices?.[0]?.delta?.content || ''
               fullText += delta
               setMessages((prev) => {
                 const updated = [...prev]
-                updated[updated.length - 1] = {
-                  ...updated[updated.length - 1],
-                  content: fullText,
-                }
+                updated[updated.length - 1] = { ...updated[updated.length - 1], content: fullText }
                 return updated
               })
-            } catch {
-              // ignore parse errors
-            }
+            } catch { /* ignore */ }
           }
         }
       }
 
-      // Parse [STATS: {...}] block and update character panels
+      // Parse [STATS:...] and update character
       const statsMatch = fullText.match(/\[STATS:\s*(\{[\s\S]*?\})\s*\]/)
       if (statsMatch) {
         try {
@@ -251,7 +253,8 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
           if (typeof stats.pleasure === 'number') updates.pleasure = Math.max(0, Math.min(100, stats.pleasure))
           if (typeof stats.desire === 'number') updates.desire = Math.max(0, Math.min(100, stats.desire))
           if (stats.bodyDevelopment && typeof stats.bodyDevelopment === 'object') {
-            const bd: BodyDevelopment = { ...((character.bodyDevelopment) ?? { breast: 0, clitoris: 0, urethra: 0, vagina: 0, anus: 0 }) }
+            const prev = character.bodyDevelopment ?? { breast: 0, clitoris: 0, urethra: 0, vagina: 0, anus: 0 }
+            const bd: BodyDevelopment = { ...prev }
             for (const key of ['breast', 'clitoris', 'urethra', 'vagina', 'anus'] as const) {
               if (typeof stats.bodyDevelopment[key] === 'number') {
                 bd[key] = Math.max(0, Math.min(5, stats.bodyDevelopment[key]))
@@ -264,37 +267,32 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
               (s) => s && typeof s.id === 'string' && typeof s.title === 'string'
             )
           }
-          if (Object.keys(updates).length > 0) {
-            onCharacterUpdate(updates)
-          }
-        } catch {
-          // invalid JSON — skip silently
-        }
+          if (Object.keys(updates).length > 0) onCharacterUpdate(updates)
+        } catch { /* invalid JSON */ }
       }
 
-      // Parse [SCENE: ...] block for image generation
+      // Parse options
+      const options = parseOptions(fullText)
+      setLatestOptions(options)
+
+      // Parse [SCENE:...] and trigger image
       const sceneMatch = fullText.match(/\[SCENE:\s*([^\]]+)\]/i)
       if (sceneMatch) {
         let scenePrompt = sceneMatch[1].trim()
-
-        // 自动补全高质量标签（防止模型偶尔偷懒）
         if (!scenePrompt.toLowerCase().includes('masterpiece')) {
-          scenePrompt = `highly detailed, ultra realistic erotic, ${scenePrompt}, masterpiece, best quality, intricate details, dark fantasy lighting, volumetric light, 8k, sharp focus`
+          scenePrompt = `${scenePrompt}, masterpiece, best quality, highly detailed, dark fantasy lighting`
         }
-
-        onRequestImage(scenePrompt)   // 直接传给你的图片生成 API
+        onRequestImage(scenePrompt)
       }
     } catch (e) {
-      const errMsg: ChatMessage = {
-        role: 'assistant',
-        content: `出错了：${String(e)}`,
-        timestamp: Date.now(),
-      }
-      setMessages((prev) => [...prev, errMsg])
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: `出错了：${String(e)}`, timestamp: Date.now() },
+      ])
     } finally {
       setLoading(false)
     }
-  }, [loading, messages, character, summary, settings, onRequestImage])
+  }, [loading, messages, character, summary, settings, onRequestImage, onCharacterUpdate])
 
   const startAdventure = async () => {
     setStarted(true)
@@ -308,20 +306,13 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
     }
   }
 
-  const cleanContent = (content: string) => {
-    return content
-      .replace(/\[SCENE:[^\]]*\]/gi, '')
-      .replace(/\[STATS:\s*\{[\s\S]*?\}\s*\]/gi, '')
-      .trim()
-  }
-
   if (!started) {
     return (
       <div className="h-full flex flex-col items-center justify-center gap-6 p-8">
         <div className="text-center space-y-3">
           <p className="gold-text text-xl font-bold tracking-wider">冒险者，准备好了吗？</p>
           <p className="text-muted-foreground text-sm leading-relaxed max-w-xs">
-            前方是未知的地下城，充满了宝藏、危险与极致的情欲。<br />你的每一次选择都会带来最淫荡的遭遇。
+            前方是未知的地下城，充满了宝藏、危险与传说。<br />你的每一次选择都将影响命运。
           </p>
         </div>
         <button
@@ -346,9 +337,7 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
               正在归纳故事摘要…
             </span>
           ) : (
-            <span className="truncate">
-              故事摘要已生成（{messages.length} 条近期对话保留中）
-            </span>
+            <span className="truncate">故事摘要已生成（{messages.length} 条近期对话保留中）</span>
           )}
         </div>
       )}
@@ -381,7 +370,7 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
               <div>
                 <span className="text-xs gold-text mb-1 block tracking-wider">地下城主</span>
                 <p className="text-foreground whitespace-pre-wrap">{cleanContent(msg.content)}</p>
-                {loading && i === messages.length - 1 && !msg.content && (
+                {loading && i === messages.length - 1 && msg.content === '' && (
                   <div className="flex gap-1 mt-2">
                     <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:0ms]" />
                     <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:150ms]" />
@@ -394,6 +383,37 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
         ))}
       </div>
 
+      {/* Action options */}
+      {latestOptions.length > 0 && !loading && (
+        <div className="px-3 pb-2 grid grid-cols-2 gap-2">
+          {latestOptions.map((opt, i) => {
+            const colors = [
+              'border-blue-500/40 text-blue-300 hover:bg-blue-500/10',
+              'border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/10',
+              'border-pink-500/40 text-pink-300 hover:bg-pink-500/10',
+              'border-red-500/40 text-red-300 hover:bg-red-500/10',
+            ]
+            const labels = ['抵抗·逃脱', '抵抗·坚守', '享受', '堕落']
+            return (
+              <button
+                key={i}
+                onClick={() => {
+                  setInput(`${i + 1}. ${opt}`)
+                  textareaRef.current?.focus()
+                }}
+                className={cn(
+                  'text-left px-3 py-2 rounded-lg border text-xs leading-snug transition-colors',
+                  colors[i] ?? 'border-border text-muted-foreground hover:bg-secondary'
+                )}
+              >
+                <span className="block text-[10px] opacity-60 mb-0.5 tracking-wider">{labels[i]}</span>
+                {opt}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       {/* Input */}
       <div className="p-3 border-t border-border">
         <div className="flex gap-2 items-end">
@@ -402,7 +422,7 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="输入你的行动或选择...（越色情越好，比如：我跪下来含住触手求它操我）"
+            placeholder="输入你的行动或选择..."
             rows={2}
             disabled={loading || summarising}
             className="flex-1 bg-secondary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors resize-none disabled:opacity-50"
