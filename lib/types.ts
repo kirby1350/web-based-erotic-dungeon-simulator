@@ -12,6 +12,22 @@ export interface CharacterMeasurements {
   hip: string     // 臀围 cm
 }
 
+export type BodyPart = 'breast' | 'clitoris' | 'urethra' | 'vagina' | 'anus'
+
+export interface BodyDevelopment {
+  breast: number    // 胸部 0-5
+  clitoris: number  // 阴蒂 0-5
+  urethra: number   // 尿道 0-5
+  vagina: number    // 阴道 0-5
+  anus: number      // 肛门 0-5
+}
+
+export interface StatusEffect {
+  id: string
+  title: string
+  description: string
+}
+
 export interface Character {
   name: string
   race: Race
@@ -22,8 +38,10 @@ export interface Character {
   level: number
   hp: number
   maxHp: number
-  pleasure: number   // 快感度 0-100
-  desire: number     // 欲望值 0-100
+  pleasure: number
+  desire: number
+  bodyDevelopment: BodyDevelopment
+  statusEffects: StatusEffect[]
 }
 
 export interface ChatMessage {

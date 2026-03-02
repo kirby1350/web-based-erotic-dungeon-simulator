@@ -80,6 +80,14 @@ export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
       maxHp: 100,
       pleasure: 0,
       desire: 0,
+      bodyDevelopment: {
+        breast: 0,
+        clitoris: 0,
+        urethra: 0,
+        vagina: 0,
+        anus: 0,
+      },
+      statusEffects: [],
     }
     onComplete(character)
   }
