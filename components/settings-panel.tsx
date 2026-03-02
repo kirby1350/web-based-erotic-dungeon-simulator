@@ -1,0 +1,207 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { X, Settings, Key, Bot, Palette } from 'lucide-react'
+import { AppSettings, CHAT_MODELS, IMAGE_MODELS, IMAGE_STYLES, ImageStyle, ImageModel } from '@/lib/types'
+import { saveSettings } from '@/lib/storage'
+import { cn } from '@/lib/utils'
+
+interface SettingsPanelProps {
+  settings: AppSettings
+  onSettingsChange: (settings: AppSettings) => void
+  onClose: () => void
+}
+
+export function SettingsPanel({ settings, onSettingsChange, onClose }: SettingsPanelProps) {
+  const [local, setLocal] = useState<AppSettings>({ ...settings })
+  const [activeTab, setActiveTab] = useState<'chat' | 'image'>('chat')
+
+  const update = (patch: Partial<AppSettings>) => {
+    setLocal((prev) => ({ ...prev, ...patch }))
+  }
+
+  const handleSave = () => {
+    saveSettings(local)
+    onSettingsChange(local)
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-end">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+
+      {/* Panel */}
+      <div className="relative w-full max-w-sm h-full bg-card dungeon-border flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <Settings className="w-4 h-4 gold-text" />
+            <span className="font-bold tracking-wider text-sm gold-text">设置</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 rounded flex items-center justify-center hover:bg-secondary transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-border">
+          {[
+            { key: 'chat', label: '文字聊天', icon: Bot },
+            { key: 'image', label: '图片生成', icon: Palette },
+          ].map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key as 'chat' | 'image')}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-2 py-3 text-xs transition-colors',
+                activeTab === key
+                  ? 'text-primary border-b-2 border-primary'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-5">
+          {activeTab === 'chat' ? (
+            <>
+              {/* Chat API Key */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5" />
+                  Chat API Key
+                </label>
+                <input
+                  type="password"
+                  value={local.chatApiKey}
+                  onChange={(e) => update({ chatApiKey: e.target.value })}
+                  placeholder="留空则使用环境变量中的 Key"
+                  className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-primary transition-colors"
+                />
+                <p className="text-xs text-muted-foreground/60 mt-1">可在此覆盖服务器端 API Key</p>
+              </div>
+
+              {/* Chat Model */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <Bot className="w-3.5 h-3.5" />
+                  对话模型
+                </label>
+                <div className="space-y-2">
+                  {CHAT_MODELS.map((m) => (
+                    <button
+                      key={m.value}
+                      onClick={() => update({ chatModel: m.value })}
+                      className={cn(
+                        'w-full text-left px-3 py-2.5 rounded-lg border text-xs transition-all',
+                        local.chatModel === m.value
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border bg-secondary text-muted-foreground hover:border-primary/50'
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>{m.label}</span>
+                        {local.chatModel === m.value && (
+                          <span className="text-primary">✓</span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* PixAI API Key */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5" />
+                  PixAI API Key
+                </label>
+                <input
+                  type="password"
+                  value={local.pixaiApiKey}
+                  onChange={(e) => update({ pixaiApiKey: e.target.value })}
+                  placeholder="留空则使用环境变量中的 Key"
+                  className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-primary transition-colors"
+                />
+              </div>
+
+              {/* Image Model */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 block">图片模型</label>
+                <div className="space-y-2">
+                  {(Object.keys(IMAGE_MODELS) as ImageModel[]).map((key) => (
+                    <button
+                      key={key}
+                      onClick={() => update({ imageModel: key })}
+                      className={cn(
+                        'w-full text-left px-3 py-2.5 rounded-lg border text-xs transition-all',
+                        local.imageModel === key
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border bg-secondary text-muted-foreground hover:border-primary/50'
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div>{IMAGE_MODELS[key].label}</div>
+                          <div className="text-muted-foreground/60 text-[10px] mt-0.5">ID: {IMAGE_MODELS[key].modelId}</div>
+                        </div>
+                        {local.imageModel === key && <span className="text-primary">✓</span>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Image Style */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <Palette className="w-3.5 h-3.5" />
+                  画风风格
+                </label>
+                <div className="space-y-2">
+                  {(Object.keys(IMAGE_STYLES) as ImageStyle[]).map((key) => (
+                    <button
+                      key={key}
+                      onClick={() => update({ imageStyle: key })}
+                      className={cn(
+                        'w-full text-left px-3 py-2.5 rounded-lg border text-xs transition-all',
+                        local.imageStyle === key
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border bg-secondary text-muted-foreground hover:border-primary/50'
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>{IMAGE_STYLES[key].label}</span>
+                        {local.imageStyle === key && <span className="text-primary">✓</span>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Save */}
+        <div className="p-4 border-t border-border">
+          <button
+            onClick={handleSave}
+            className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-bold tracking-wider glow-btn"
+          >
+            保存设置
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
