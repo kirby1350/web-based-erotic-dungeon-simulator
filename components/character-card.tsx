@@ -23,26 +23,45 @@ const BODY_PART_LABELS: Record<BodyPart, string> = {
 }
 
 const DEVELOPMENT_DESCRIPTIONS: Record<number, string> = {
-  0: '未开发',
-  1: '初步敏感',
-  2: '逐渐适应',
-  3: '充分开发',
-  4: '高度敏感',
-  5: '完全开发',
+  0: '此处尚未经历任何开发，对外界刺激几乎没有反应，处于完全原始的状态',
+  1: '经过初步的触碰与刺激，开始产生隐约的酥麻感，偶尔会不自觉地轻微收缩',
+  2: '已逐渐适应规律性的刺激，敏感度明显提升，被触碰时会不由自主地渗出液体',
+  3: '经过充分的开发，稍加刺激便会迅速充血膨胀，高潮来得越来越容易且强烈',
+  4: '高度敏感，即使只是轻微的摩擦或语言挑逗也会引发强烈的快感与不受控的收缩',
+  5: '已被彻底开发，永久处于过敏感状态，稍有刺激便会不受控地高潮颤抖并大量溢液',
 }
 
-function DevelopmentDots({ level }: { level: number }) {
+function DevelopmentBar({ level, exp }: { level: number; exp: number }) {
+  const isMaxLevel = level >= 5
   return (
-    <div className="flex gap-0.5 items-center">
-      {Array.from({ length: 5 }).map((_, i) => (
+    <div className="flex items-center gap-1.5 flex-1">
+      {/* Level badge */}
+      <span className={cn(
+        'text-[10px] font-bold w-8 flex-shrink-0 text-center py-0.5 rounded',
+        level === 0 ? 'text-slate-500 bg-slate-800/50' :
+        level <= 2 ? 'text-pink-300 bg-pink-900/40' :
+        level <= 4 ? 'text-pink-200 bg-pink-800/50' :
+        'text-white bg-pink-600/70'
+      )}>
+        Lv{level}
+      </span>
+      {/* EXP bar */}
+      <div className="flex-1 h-2 bg-slate-700/60 rounded-full overflow-hidden">
         <div
-          key={i}
           className={cn(
-            'w-2.5 h-2.5 rounded-sm transition-colors',
-            i < level ? 'bg-pink-500' : 'bg-secondary border border-border/60'
+            'h-full rounded-full transition-all duration-500',
+            isMaxLevel ? 'bg-gradient-to-r from-pink-400 to-rose-400' : 'bg-gradient-to-r from-pink-600 to-pink-400'
           )}
+          style={{ width: isMaxLevel ? '100%' : `${exp}%` }}
         />
-      ))}
+      </div>
+      {/* EXP text */}
+      {!isMaxLevel && (
+        <span className="text-[10px] text-slate-400 w-10 text-right flex-shrink-0">{exp}/100</span>
+      )}
+      {isMaxLevel && (
+        <span className="text-[10px] text-pink-300 font-bold w-10 text-right flex-shrink-0">MAX</span>
+      )}
     </div>
   )
 }
@@ -167,16 +186,17 @@ export function CharacterCard({ character, onReset }: CharacterCardProps) {
             <div className="space-y-2">
               <div className="text-[10px] text-muted-foreground/60 tracking-widest uppercase px-0.5">开发度</div>
               {(Object.keys(BODY_PART_LABELS) as BodyPart[]).map((part) => {
-                const level = bodyDevelopment[part]
+                const level = bodyDevelopment[part] ?? 0
+                const exp = bodyDevelopment.exp?.[part] ?? 0
                 const aiDesc = bodyDevelopment.descriptions?.[part]
-                const staticDesc = DEVELOPMENT_DESCRIPTIONS[level] ?? '未开发'
+                const staticDesc = DEVELOPMENT_DESCRIPTIONS[level] ?? DEVELOPMENT_DESCRIPTIONS[0]
                 return (
-                  <div key={part} className="space-y-0.5">
+                  <div key={part} className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground w-10 flex-shrink-0">{BODY_PART_LABELS[part]}</span>
-                      <DevelopmentDots level={level} />
+                      <span className="text-xs text-slate-300 w-10 flex-shrink-0">{BODY_PART_LABELS[part]}</span>
+                      <DevelopmentBar level={level} exp={exp} />
                     </div>
-                    <p className="text-[11px] text-muted-foreground/70 leading-snug pl-12">
+                    <p className="text-[11px] text-slate-300/80 leading-snug pl-12">
                       {aiDesc || staticDesc}
                     </p>
                   </div>

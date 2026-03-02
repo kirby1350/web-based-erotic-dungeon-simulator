@@ -14,6 +14,8 @@ export interface BodyDevelopment {
   urethra: number
   vagina: number
   anus: number
+  // exp per part 0-100; every 100 exp = 1 level (capped at 5)
+  exp?: Partial<Record<BodyPart, number>>
   descriptions?: Partial<Record<BodyPart, string>>
 }
 

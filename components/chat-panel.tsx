@@ -89,11 +89,11 @@ ${summarySection}
 
 【状态更新规则（每次回复必须严格输出，不得省略）】
 在回复最末尾单独一行输出严格 JSON，格式如下（不允许换行，一行输出完整）：
-[STATS:{"hp":数字,"pleasure":数字,"desire":数字,"measurements":{"bust":"数字cm","waist":"数字cm","hip":"数字cm"},"bodyDevelopment":{"breast":0-5,"clitoris":0-5,"urethra":0-5,"vagina":0-5,"anus":0-5,"descriptions":{"breast":"一句话描述当前胸部状态","clitoris":"一句话描述","urethra":"一句话描述","vagina":"一句话描述","anus":"一句话描述"}},"statusEffects":[{"id":"snake_bind","title":"状态标题","description":"一句话描述此状态对角色的影响"}]}]
+  [STATS:{"hp":数字,"pleasure":数字,"desire":数字,"measurements":{"bust":"数字","waist":"数字","hip":"数字"},"bodyDevelopment":{"breast":0-5,"clitoris":0-5,"urethra":0-5,"vagina":0-5,"anus":0-5,"exp":{"breast":0-100,"clitoris":0-100,"urethra":0-100,"vagina":0-100,"anus":0-100},"descriptions":{"breast":"20-30字描述当前胸部状态","clitoris":"20-30字描述","urethra":"20-30字描述","vagina":"20-30字描述","anus":"20-30字描述"}},"statusEffects":[{"id":"snake_bind","title":"状态标题","description":"一句话描述此状态对角色的影响"}]}]
 
 - hp / pleasure / desire 为 0-100 整数（hp 上限为 ${character.maxHp}）
-- measurements：三围数字（纯数字字符串，不含单位），随剧情变化实时更新（例如被触手撑大乳房、腰部压缩等身体改造后必须更新对应数值）；若无变化则填写当前值
-- bodyDevelopment 各部位等级 0-5；descriptions 里每个部位用一句话描写当前的身体感觉或状态变化（中文，15字以内）
+- measurements：三围纯数字字符串（不含单位），随剧情中身体改造实时更新；若无变化则填写当前值
+- bodyDevelopment 各部位等级 0-5；exp 为当前等级内的经验值 0-100，每次行为后根据刺激程度增加（剧烈刺激+20~40，轻微+5~10），累计到100则等级+1（上限Lv5）；descriptions 每个部位用20-30字描写当前的身体感觉或变化
 - statusEffects：有状态时必须包含；无状态时输出空数组 []；id 用英文下划线格式，title 用中文2-4字，description 一句中文
 - 此 JSON 必须完整、格式正确，不得截断，不得分行`
 }
@@ -358,6 +358,17 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
                 bd[key] = Math.max(0, Math.min(5, stats.bodyDevelopment[key]))
               }
             })
+            // Merge exp values
+            if (stats.bodyDevelopment.exp && typeof stats.bodyDevelopment.exp === 'object') {
+              const prevExp = prev.exp ?? {}
+              const newExp = { ...prevExp }
+              ;(['breast', 'clitoris', 'urethra', 'vagina', 'anus'] as const).forEach((key) => {
+                if (typeof stats.bodyDevelopment.exp[key] === 'number') {
+                  newExp[key] = Math.max(0, Math.min(100, stats.bodyDevelopment.exp[key]))
+                }
+              })
+              bd.exp = newExp
+            }
             // Merge AI-generated descriptions
             if (stats.bodyDevelopment.descriptions && typeof stats.bodyDevelopment.descriptions === 'object') {
               bd.descriptions = { ...(prev.descriptions ?? {}), ...stats.bodyDevelopment.descriptions }
