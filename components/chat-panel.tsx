@@ -1,9 +1,14 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { Send, Loader2, Image as ImageIcon } from 'lucide-react'
-import { Character, ChatMessage, AppSettings, IMAGE_MODELS, IMAGE_STYLES } from '@/lib/types'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { Send, Loader2, BookOpen } from 'lucide-react'
+import { Character, ChatMessage, AppSettings } from '@/lib/types'
 import { cn } from '@/lib/utils'
+
+// How many recent messages to keep in full before triggering a summarisation
+const SUMMARY_THRESHOLD = 10
+// After summary, keep this many recent messages verbatim
+const RECENT_KEEP = 4
 
 interface ChatPanelProps {
   character: Character
@@ -11,33 +16,98 @@ interface ChatPanelProps {
   onRequestImage: (scene: string) => void
 }
 
-function buildSystemPrompt(character: Character): string {
+function buildSystemPrompt(character: Character, summary?: string): string {
   const raceMap: Record<string, string> = {
     human: '人族',
     elf: '精灵族',
     tauren: '牛人族',
   }
+  const measurements = character.measurements
+  const measurementLine =
+    measurements.bust || measurements.waist || measurements.hip
+      ? `- 三围：胸围 ${measurements.bust || '?'} cm / 腰围 ${measurements.waist || '?'} cm / 臀围 ${measurements.hip || '?'} cm`
+      : ''
+
+  const summarySection = summary
+    ? `\n【故事摘要（之前发生的事情）】\n${summary}\n`
+    : ''
+
   return `你是一个专业的地下城主持人（DM），负责主持一场沉浸式的文字地下城冒险RPG游戏。
-  
+
 玩家角色信息：
 - 名字：${character.name}
 - 种族：${raceMap[character.race]}
 - 力量：${character.stats.strength}，敏捷：${character.stats.agility}，智力：${character.stats.intelligence}
 - 等级：${character.level}
 - 生命值：${character.hp}/${character.maxHp}
+${measurementLine}
 ${character.backstory ? `- 背景故事：${character.backstory}` : ''}
-
+${summarySection}
 请遵循以下规则：
 1. 用中文进行叙述，语言生动、沉浸，富有奇幻色彩
 2. 根据玩家的选择推进剧情，提供2-4个有意义的行动选项
 3. 战斗时根据角色属性计算结果，增加随机性和紧张感
 4. 适时描述环境、声音、气味等细节增强代入感
 5. 遭遇重要场景时，在回复末尾添加一行：[SCENE: 简短英文场景描述，用于图片生成]
-6. 保持故事连贯性，记住玩家的历史选择`
+6. 严格根据故事摘要保持剧情连贯，不得遗忘已发生的事件`
+}
+
+async function fetchSummary(
+  messages: ChatMessage[],
+  model: string,
+  apiKey: string
+): Promise<string> {
+  const conversation = messages
+    .map((m) => `${m.role === 'user' ? '玩家' : '地下城主'}：${m.content}`)
+    .join('\n')
+
+  const res = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messages: [
+        {
+          role: 'system',
+          content:
+            '你是一个专业的故事摘要助手。请将给定的地下城冒险对话内容，提炼为一段简洁的第三人称叙述摘要（300字以内），重点记录：发生的关键事件、场景变化、战斗结果、获得的物品/信息、玩家的重要选择。直接输出摘要内容，不要加标题。',
+        },
+        {
+          role: 'user',
+          content: `请总结以下冒险对话：\n\n${conversation}`,
+        },
+      ],
+      model,
+      apiKey,
+    }),
+  })
+
+  if (!res.ok) return ''
+
+  const reader = res.body!.getReader()
+  const decoder = new TextDecoder()
+  let text = ''
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    const chunk = decoder.decode(value)
+    for (const line of chunk.split('\n')) {
+      if (line.startsWith('data: ')) {
+        const d = line.slice(6).trim()
+        if (d === '[DONE]') continue
+        try {
+          const parsed = JSON.parse(d)
+          text += parsed.choices?.[0]?.delta?.content || ''
+        } catch { /* ignore */ }
+      }
+    }
+  }
+  return text.trim()
 }
 
 export function ChatPanel({ character, settings, onRequestImage }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [summary, setSummary] = useState<string>('')
+  const [summarising, setSummarising] = useState(false)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [started, setStarted] = useState(false)
@@ -50,12 +120,26 @@ export function ChatPanel({ character, settings, onRequestImage }: ChatPanelProp
     }
   }, [messages])
 
-  const startAdventure = async () => {
-    setStarted(true)
-    await sendMessage('开始冒险', true)
-  }
+  // Trigger summarisation when message count exceeds threshold
+  useEffect(() => {
+    const assistantCount = messages.filter((m) => m.role === 'assistant').length
+    if (assistantCount > 0 && assistantCount % SUMMARY_THRESHOLD === 0 && !summarising && !loading) {
+      const toSummarise = messages.slice(0, messages.length - RECENT_KEEP)
+      if (toSummarise.length === 0) return
+      setSummarising(true)
+      fetchSummary(toSummarise, settings.chatModel, settings.chatApiKey || '')
+        .then((newSummary) => {
+          if (newSummary) {
+            setSummary((prev) => (prev ? `${prev}\n\n${newSummary}` : newSummary))
+            // Trim the messages list, keep only recent ones
+            setMessages((prev) => prev.slice(-RECENT_KEEP))
+          }
+        })
+        .finally(() => setSummarising(false))
+    }
+  }, [messages, summarising, loading, settings.chatModel, settings.chatApiKey])
 
-  const sendMessage = async (userText: string, isStart = false) => {
+  const sendMessage = useCallback(async (userText: string, isStart = false) => {
     if (loading) return
 
     const userMsg: ChatMessage = {
@@ -70,12 +154,13 @@ export function ChatPanel({ character, settings, onRequestImage }: ChatPanelProp
     setLoading(true)
 
     const apiMessages = [
-      { role: 'system', content: buildSystemPrompt(character) },
+      { role: 'system', content: buildSystemPrompt(character, summary || undefined) },
       ...newMessages.map((m) => ({
         role: m.role,
-        content: m.role === 'user' && m.content === '（冒险开始）'
-          ? `玩家 ${character.name} 踏入了地下城的入口。请开始描述冒险的起始场景，给玩家提供背景介绍和初始选项。`
-          : m.content,
+        content:
+          m.role === 'user' && m.content === '（冒险开始）'
+            ? `玩家 ${character.name} 踏入了地下城的入口。请开始描述冒险的起始场景，给玩家提供背景介绍和初始选项。`
+            : m.content,
       })),
     ]
 
@@ -178,8 +263,7 @@ export function ChatPanel({ character, settings, onRequestImage }: ChatPanelProp
                 }
               }
             }
-            const tags = tagText.trim()
-            onRequestImage(tags || sceneDesc)
+            onRequestImage(tagText.trim() || sceneDesc)
           } else {
             onRequestImage(sceneDesc)
           }
@@ -190,13 +274,18 @@ export function ChatPanel({ character, settings, onRequestImage }: ChatPanelProp
     } catch (e) {
       const errMsg: ChatMessage = {
         role: 'assistant',
-        content: `⚠️ 出错了：${String(e)}`,
+        content: `出错了：${String(e)}`,
         timestamp: Date.now(),
       }
       setMessages((prev) => [...prev, errMsg])
     } finally {
       setLoading(false)
     }
+  }, [loading, messages, character, summary, settings, onRequestImage])
+
+  const startAdventure = async () => {
+    setStarted(true)
+    await sendMessage('开始冒险', true)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -231,6 +320,23 @@ export function ChatPanel({ character, settings, onRequestImage }: ChatPanelProp
 
   return (
     <div className="h-full flex flex-col">
+      {/* Summary indicator */}
+      {(summary || summarising) && (
+        <div className="px-4 py-2 border-b border-border flex items-center gap-2 text-xs text-muted-foreground bg-secondary/30">
+          <BookOpen className="w-3.5 h-3.5 flex-shrink-0 text-primary/60" />
+          {summarising ? (
+            <span className="flex items-center gap-1.5">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              正在归纳故事摘要…
+            </span>
+          ) : (
+            <span className="truncate">
+              故事摘要已生成（{messages.length} 条近期对话保留中）
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((msg, i) => (
@@ -282,12 +388,12 @@ export function ChatPanel({ character, settings, onRequestImage }: ChatPanelProp
             onKeyDown={handleKeyDown}
             placeholder="输入你的行动或选择..."
             rows={2}
-            disabled={loading}
+            disabled={loading || summarising}
             className="flex-1 bg-secondary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors resize-none disabled:opacity-50"
           />
           <button
             onClick={() => input.trim() && sendMessage(input.trim())}
-            disabled={loading || !input.trim()}
+            disabled={loading || summarising || !input.trim()}
             className="p-2.5 rounded-lg bg-primary text-primary-foreground glow-btn disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
