@@ -52,8 +52,8 @@ export function ImagePanel({ settings, character, pendingScene, onSceneHandled }
     setError(null)
     try {
       const modelId = IMAGE_MODELS[settings.imageModel].modelId
-      const styleTag = settings.imageStyle !== 'none' ? `, ${settings.imageStyle}` : ''
-      const finalPrompt = `${prompt}${styleTag}`
+      const styleTags = IMAGE_STYLES[settings.imageStyle].tags
+      const finalPrompt = styleTags ? `${prompt}, ${styleTags}` : prompt
 
       const res = await fetch('/api/image/generate', {
         method: 'POST',

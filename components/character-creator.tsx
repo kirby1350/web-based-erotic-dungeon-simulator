@@ -78,6 +78,8 @@ export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
       level: 1,
       hp: 100,
       maxHp: 100,
+      pleasure: 0,
+      desire: 0,
     }
     onComplete(character)
   }

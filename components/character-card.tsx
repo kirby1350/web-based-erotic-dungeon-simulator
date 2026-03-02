@@ -2,7 +2,7 @@
 
 import { Character } from '@/lib/types'
 import { RACE_INFO } from '@/lib/types'
-import { Heart, Star, Shield, Zap, Brain, RotateCcw } from 'lucide-react'
+import { Heart, Shield, Zap, Brain, RotateCcw, Flame, Sparkles } from 'lucide-react'
 
 interface CharacterCardProps {
   character: Character
@@ -46,7 +46,7 @@ export function CharacterCard({ character, onReset }: CharacterCardProps) {
       </div>
 
       {/* HP Bar */}
-      <div className="mb-3">
+      <div className="mb-2">
         <div className="flex items-center justify-between text-xs mb-1">
           <div className="flex items-center gap-1 text-red-400">
             <Heart className="w-3 h-3" />
@@ -59,6 +59,42 @@ export function CharacterCard({ character, onReset }: CharacterCardProps) {
             className="h-full bg-red-500 rounded-full transition-all"
             style={{ width: `${(character.hp / character.maxHp) * 100}%` }}
           />
+        </div>
+      </div>
+
+      {/* Pleasure & Desire bars */}
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        {/* 快感度 */}
+        <div>
+          <div className="flex items-center justify-between text-xs mb-1">
+            <div className="flex items-center gap-1 text-pink-400">
+              <Sparkles className="w-3 h-3" />
+              <span>快感度</span>
+            </div>
+            <span className="text-muted-foreground">{character.pleasure}</span>
+          </div>
+          <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
+            <div
+              className="h-full bg-pink-500 rounded-full transition-all"
+              style={{ width: `${character.pleasure}%` }}
+            />
+          </div>
+        </div>
+        {/* 欲望值 */}
+        <div>
+          <div className="flex items-center justify-between text-xs mb-1">
+            <div className="flex items-center gap-1 text-orange-400">
+              <Flame className="w-3 h-3" />
+              <span>欲望值</span>
+            </div>
+            <span className="text-muted-foreground">{character.desire}</span>
+          </div>
+          <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
+            <div
+              className="h-full bg-orange-500 rounded-full transition-all"
+              style={{ width: `${character.desire}%` }}
+            />
+          </div>
         </div>
       </div>
 

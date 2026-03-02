@@ -22,6 +22,8 @@ export interface Character {
   level: number
   hp: number
   maxHp: number
+  pleasure: number   // 快感度 0-100
+  desire: number     // 欲望值 0-100
 }
 
 export interface ChatMessage {
@@ -55,10 +57,16 @@ export const IMAGE_MODELS: Record<ImageModel, { label: string; modelId: string }
   },
 }
 
-export const IMAGE_STYLES: Record<ImageStyle, { label: string; lora?: string }> = {
-  none: { label: '无' },
-  'dk.senie': { label: 'dk.senie 风格', lora: 'dk.senie' },
-  hakai_shin: { label: 'Hakai Shin 风格', lora: 'hakai_shin' },
+export const IMAGE_STYLES: Record<ImageStyle, { label: string; tags: string }> = {
+  none: { label: '无', tags: '' },
+  'dk.senie': {
+    label: 'dk.senie 风格',
+    tags: 'dk.senie, watercolor, soft lineart, pastel colors, dreamy lighting',
+  },
+  hakai_shin: {
+    label: 'Hakai Shin 风格',
+    tags: 'hakai_shin, detailed shading, dynamic pose, vibrant colors, anime illustration',
+  },
 }
 
 export const CHAT_MODELS = [
