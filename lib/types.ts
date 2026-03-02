@@ -167,12 +167,14 @@ export interface CharacterPreset {
   backstory: string
   costumeDescription: string
   otherDescription: string
+  avatarUrl?: string
 }
 
 export const CHARACTER_PRESETS: CharacterPreset[] = [
   {
     name: '娜露梅亚',
     race: 'tauren',
+    avatarUrl: '/avatars/narmaya.png',
     measurements: { bust: '90', waist: '58', hip: '88' },
     backstory: '碧蓝幻想世界中出身武术世家的剑豪，24岁的她日夜苦练只为追求最强境界。因一次与星晶兽相关的意外被卷入地下城。外表冷酷寡言，内心却隐藏着极强的被征服欲。身材虽娇小（134cm），却拥有夸张的E杯巨乳与紧致翘臀，修炼时乳房剧烈晃动、汗水顺着乳沟流下的模样早已是冒险者间的传说。',
     costumeDescription: '极度紧身的黑色皮革战衣将丰满的E杯乳房勒得几乎要溢出来，胸口金色符文正好压在敏感的乳头上，随着呼吸不断摩擦。腰间暗紫色腰带像情趣束缚带一样深深勒进软肉，下身是开档式皮革短裤，裆部仅用一根细链遮挡，剧烈动作时粉嫩湿润的骚穴随时可能完全暴露。大腿根部的绑带深深陷入肉里，走路时会不断摩擦阴唇。银白色长发用黑色缎带半扎，散发着浓烈的雌性荷尔蒙气息。',
@@ -181,6 +183,7 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
   {
     name: '一之濑志希',
     race: 'human',
+    avatarUrl: '/avatars/ichinose-shiki.png',
     measurements: { bust: '85', waist: '57', hip: '84' },
     backstory: '来自现代日本的18岁天才化学家兼偶像，自称“平常的JK”。曾跳级海外留学，因觉得“无聊”而回国。把地下城冒险当成“最有趣的性实验”，经常偷偷调配强效春药涂在自己乳头、阴蒂或直接喷在玩家身上。表面永远挂着慵懒神秘的猫系微笑，实际上对各种变态玩法充满病态的好奇心。',
     costumeDescription: '白色短款夹克里面完全真空，黑色细肩带勉强遮住粉嫩乳头，稍微一动就会走光。超短格纹迷你裙下面永远真空，黑色过膝袜深深勒进大腿软肉，厚底乐福鞋让她走路时屁股一扭一扭。淡紫色渐变短发上永远带着她自己调制的催情香水，只要靠近三米内就会让人鸡巴瞬间充血发硬。左耳多个耳洞，戴着小小的银色铃铛，高潮时会发出清脆的响声。',
@@ -189,6 +192,7 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
   {
     name: '桑山千雪',
     race: 'human',
+    avatarUrl: '/avatars/kuwayama-chiyuki.png',
     measurements: { bust: '93', waist: '61', hip: '90' },
     backstory: '23岁的温柔音乐制作人兼偶像，因一首古老召唤曲谱被卷入地下城。外表是完美的大姐姐、贤妻良母，总是把他人放在第一位，内心却隐藏着强烈的被保护欲与受孕渴望。她那敏感的音乐天赋让她对“节奏”和“震动”极度敏感，被有规律抽插时很容易连续潮吹失禁。',
     costumeDescription: '奶油色蓬松毛衣领口开得极低，随时能看见深邃乳沟和半露的粉色大乳晕，毛衣材质极软，乳头稍微硬起就会明显顶出两点。下身米白色长裙里面是开档情趣内裤，方便随时被插入。金棕色长卷发散发着淡淡奶香，颈间的音符吊坠在高潮时会随着身体颤抖发出清脆撞击声，像在为她的淫叫伴奏。',
