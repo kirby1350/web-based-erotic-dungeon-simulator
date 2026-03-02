@@ -47,7 +47,7 @@ export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
     setBackstory(preset.backstory)
     setCostumeDescription(preset.costumeDescription)
     setOtherDescription(preset.otherDescription)
-    setAvatarUrl(null)
+    setAvatarUrl(preset.avatarUrl ?? null)
   }
 
   const handleSubmit = () => {
@@ -93,12 +93,23 @@ export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
                   key={preset.name}
                   onClick={() => applyPreset(preset)}
                   className={cn(
-                    'flex flex-col items-center gap-1 p-3 rounded-lg border transition-all text-xs',
+                    'flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-all text-xs',
                     name === preset.name
                       ? 'border-primary bg-primary/10 text-primary'
                       : 'border-border bg-secondary text-muted-foreground hover:border-primary/50'
                   )}
                 >
+                  {preset.avatarUrl ? (
+                    <img
+                      src={preset.avatarUrl}
+                      alt={preset.name}
+                      className="w-14 h-14 rounded-lg object-cover object-top"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
+                      <Sparkles className="w-5 h-5" />
+                    </div>
+                  )}
                   <span className="font-semibold">{preset.name}</span>
                   <span className="text-[10px] opacity-60">{RACE_INFO[preset.race].label}</span>
                 </button>

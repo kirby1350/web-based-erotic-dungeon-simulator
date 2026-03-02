@@ -40,6 +40,7 @@ export function getDefaultSettings(): AppSettings {
     imageProvider: 'pixai',
     tensorartModel: 'wai_nsfw_v16',
     chatApiKey: '',
+    grokApiKey: '',
     pixaiApiKey: '',
     tensorartApiKey: '',
   }

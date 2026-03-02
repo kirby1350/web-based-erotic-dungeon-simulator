@@ -89,6 +89,23 @@ export function SettingsPanel({ settings, onSettingsChange, onClose }: SettingsP
                 <p className="text-xs text-muted-foreground/60 mt-1">可在此覆盖服务器端 API Key</p>
               </div>
 
+              {/* Grok API Key */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5" />
+                  Grok API Key
+                  <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary border border-primary/30">xAI</span>
+                </label>
+                <input
+                  type="password"
+                  value={local.grokApiKey ?? ''}
+                  onChange={(e) => update({ grokApiKey: e.target.value })}
+                  placeholder="选择 Grok 模型时需要此 Key"
+                  className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-primary transition-colors"
+                />
+                <p className="text-xs text-muted-foreground/60 mt-1">仅在选择 Grok 系列模型时使用</p>
+              </div>
+
               {/* Chat Model */}
               <div>
                 <label className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
