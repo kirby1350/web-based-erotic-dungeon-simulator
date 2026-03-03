@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>地下城探险</title>
+  <meta name="description" content="极致奇幻成人地下城文字冒险游戏">
+  <meta name="theme-color" content="#0e0f18">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- ============================================================
+     应用根节点
+     ============================================================ -->
+<div id="app">
+
+  <!-- 加载屏幕 -->
+  <div id="loading-screen">
+    <div class="spinner"></div>
+    <p style="font-size:13px;color:var(--fg-muted);letter-spacing:0.1em">载入中...</p>
+  </div>
+
+  <!-- ============================================================
+       角色创建屏幕 (由 game.js 动态渲染)
+       ============================================================ -->
+  <div id="creator-screen" class="hidden"></div>
+
+  <!-- ============================================================
+       游戏主屏幕
+       ============================================================ -->
+  <div id="game-screen" class="hidden">
+
+    <!-- 顶栏 -->
+    <header class="topbar">
+      <h1 class="topbar-title gold-text" id="topbarTitle">地下城探险</h1>
+      <button class="btn-settings" id="btnSettings">&#9881; 设置</button>
+    </header>
+
+    <!-- 移动端 tab 切换栏 -->
+    <div class="mobile-tabs">
+      <button class="mobile-tab active" id="tabChat">冒险日志</button>
+      <button class="mobile-tab" id="tabImage">场景插图</button>
+    </div>
+
+    <!-- 双栏主区域 -->
+    <div class="game-columns">
+
+      <!-- 左栏：角色卡 + 聊天 -->
+      <div class="col-left" id="colLeft">
+        <!-- 角色信息卡片 (由 game.js 动态渲染) -->
+        <div id="charCard"></div>
+
+        <!-- 聊天面板 (由 game.js 动态渲染) -->
+        <div class="chat-panel" id="chatPanel"></div>
+      </div>
+
+      <!-- 右栏：图片面板 -->
+      <div class="col-right" id="colRight">
+        <div class="image-panel">
+
+          <!-- 主图区 -->
+          <div class="image-main" id="imageMain">
+            <div class="image-placeholder">
+              <div class="image-placeholder-icon">&#128444;</div>
+              <p>场景插图将在这里显示</p>
+              <span>AI 将根据冒险剧情自动生成插图</span>
+            </div>
+          </div>
+
+          <!-- 错误信息 -->
+          <div class="image-error hidden" id="imageError"></div>
+
+          <!-- 手动生成切换 -->
+          <button class="custom-prompt-toggle" id="customPromptToggle">
+            <span>&#10024; 手动生成图片</span>
+            <span id="customPromptToggleIcon">&#9660;</span>
+          </button>
+
+          <!-- 手动生成输入框 -->
+          <div class="custom-prompt-box hidden" id="customPromptBox">
+            <input class="input-base" id="customPromptInput"
+              placeholder="描述要生成的场景（英文更佳）...">
+            <button class="btn-gen" id="btnCustomGen">
+              &#8635; 生成场景
+            </button>
+          </div>
+
+          <!-- 缩略图列表 -->
+          <div class="thumbnails-row hidden" id="thumbnailsRow"></div>
+
+        </div>
+      </div>
+
+    </div><!-- /.game-columns -->
+  </div><!-- /#game-screen -->
+
+</div><!-- /#app -->
+
+<!-- ============================================================
+     脚本：先加载图片模块，再加载游戏主逻辑
+     ============================================================ -->
+<script src="create_pictures.js"></script>
+<script src="game.js"></script>
+
+</body>
+</html>
