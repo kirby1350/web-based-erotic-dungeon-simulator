@@ -66,7 +66,7 @@ async function generateTensorArt(
   const res = await fetch('/api/image/tensorart', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt: fullTags, modelId, apiKey: settings.tensorartApiKey }),
+    body: JSON.stringify({ prompts: fullTags, modelId, apiKey: settings.tensorartApiKey }),
   })
 
   if (!res.ok) {
@@ -74,19 +74,28 @@ async function generateTensorArt(
     return { url: '', error: err }
   }
 
-  const { jobId } = await res.json()
+  const createData = await res.json()
+  // TensorArt returns { job: { id: "...", status: "CREATED" } }
+  const jobId = createData?.job?.id
+
+  if (!jobId) {
+    return { url: '', error: `无法获取 jobId，响应: ${JSON.stringify(createData)}` }
+  }
 
   for (let i = 0; i < MAX_POLLS; i++) {
     await new Promise((r) => setTimeout(r, POLL_INTERVAL))
     const pollRes = await fetch(`/api/image/tensorart/${jobId}`, {
-      headers: { 'x-api-key': settings.tensorartApiKey },
+      headers: { 'x-tensorart-key': settings.tensorartApiKey },
     })
     if (!pollRes.ok) continue
     const data = await pollRes.json()
-    if (data.status === 'completed' && data.url) {
-      return { url: data.url }
+    // TensorArt poll response: { job: { status: "SUCCESS", images: [{ url: "..." }] } }
+    const job = data?.job
+    const status = job?.status
+    if ((status === 'SUCCESS' || status === 'COMPLETED') && job?.images?.[0]?.url) {
+      return { url: job.images[0].url }
     }
-    if (data.status === 'failed') {
+    if (status === 'FAILED' || status === 'ERROR') {
       return { url: '', error: 'Task failed' }
     }
   }
