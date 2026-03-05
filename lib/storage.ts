@@ -16,7 +16,6 @@ export function getSettings(): AppSettings {
     if (!raw) return getDefaultSettings()
     const parsed = JSON.parse(raw)
     const merged = { ...getDefaultSettings(), ...parsed }
-    // Sanitise enum values that may be stale from a previous build
     if (!VALID_IMAGE_STYLES.includes(merged.imageStyle)) merged.imageStyle = 'none'
     if (!VALID_IMAGE_MODELS.includes(merged.imageModel)) merged.imageModel = 'haruka_v2'
     if (!VALID_TENSORART_MODELS.includes(merged.tensorartModel)) merged.tensorartModel = 'wai_nsfw_v16'

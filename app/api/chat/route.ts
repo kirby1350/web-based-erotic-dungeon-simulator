@@ -6,7 +6,6 @@ export const runtime = 'edge'
 export async function POST(req: NextRequest) {
   const { messages, model, apiKey, grokApiKey } = await req.json()
 
-  // Determine which provider to use based on the selected model
   const modelMeta = CHAT_MODELS.find((m) => m.value === model)
   const isGrok = modelMeta?.provider === 'grok'
 
@@ -45,7 +44,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Default provider
   const key = apiKey || process.env.CHAT_API_KEY
   if (!key) {
     return NextResponse.json({ error: '未配置 Chat API Key' }, { status: 401 })
