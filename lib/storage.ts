@@ -26,3 +26,30 @@ export function saveSettings(settings: AppSettings): void {
   if (typeof window === 'undefined') return
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
 }
+
+// ─── 游戏存档 ──────────────────────────────────────────────────────────────────
+
+import { GameSave } from '@/lib/types'
+
+const GAME_KEY = 'game_save'
+
+export function getGameSave(): GameSave | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(GAME_KEY)
+    if (!raw) return null
+    return JSON.parse(raw) as GameSave
+  } catch {
+    return null
+  }
+}
+
+export function saveGameSave(save: GameSave): void {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(GAME_KEY, JSON.stringify(save))
+}
+
+export function clearGameSave(): void {
+  if (typeof window === 'undefined') return
+  localStorage.removeItem(GAME_KEY)
+}

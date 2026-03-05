@@ -118,3 +118,89 @@ export const DEFAULT_SETTINGS: AppSettings = {
   pixaiApiKey: '',
   tensorartApiKey: '',
 }
+
+// ─── 游戏类型 ─────────────────────────────────────────────────────────────────
+
+export interface Player {
+  name: string
+  traits: string[]
+  fetishes: string[]
+  gold: number
+  day: number
+  guestPreference: string
+  marketPreference: string
+}
+
+export interface MonstGirl {
+  id: string
+  name: string
+  race: string
+  age: string
+  bodyDesc: string
+  bodyTags: string
+  personality: string
+  personalityTags: string
+  outfit: string
+  outfitTags: string
+  otherDesc: string
+  otherTags: string
+  // 数值
+  affection: number
+  obedience: number
+  lewdness: number
+  skills: string[]
+  // 图片缓存
+  imageTags: string
+  imageUrl?: string
+  // 市场
+  price?: number
+}
+
+export interface Guest {
+  id: string
+  name: string
+  race: string
+  personality: string
+  traits: string[]
+  desires: string
+  imageTags: string
+  imageUrl?: string
+  satisfaction: number
+}
+
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant'
+  content: string
+}
+
+export interface ParticipantStats {
+  pleasure: number
+  stamina: number
+  isExhausted: boolean
+}
+
+export interface ServiceSession {
+  type: 'service' | 'training'
+  guest?: Guest
+  trainer?: MonstGirl
+  girls: MonstGirl[]
+  messages: ChatMessage[]
+  girlsStats: Record<string, ParticipantStats>
+  guestStats?: ParticipantStats
+  trainerStats?: ParticipantStats
+}
+
+export type GamePhase =
+  | 'morning'
+  | 'service'
+  | 'training'
+  | 'market'
+  | 'interaction'
+
+export interface GameSave {
+  player: Player
+  girls: MonstGirl[]
+  currentDay: number
+  phase: GamePhase
+  activeSession?: ServiceSession
+}

@@ -1,0 +1,130 @@
+import { AppSettings, IMAGE_MODELS, IMAGE_STYLES, TENSORART_MODELS } from '@/lib/types'
+
+export interface GenerateImageResult {
+  url: string
+  error?: string
+}
+
+const POLL_INTERVAL = 2000
+const MAX_POLLS = 30
+
+/**
+ * 通过 PixAI API 生成图片并等待结果
+ */
+async function generatePixAI(
+  tags: string,
+  settings: AppSettings
+): Promise<GenerateImageResult> {
+  const modelId = IMAGE_MODELS[settings.imageModel]?.modelId
+  const styleTags = IMAGE_STYLES[settings.imageStyle]?.tags ?? ''
+  const customTags = settings.imageStyleCustom ?? ''
+  const fullTags = [tags, styleTags, customTags].filter(Boolean).join(', ')
+
+  const res = await fetch('/api/image/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: fullTags, modelId, apiKey: settings.pixaiApiKey }),
+  })
+
+  if (!res.ok) {
+    const err = await res.text()
+    return { url: '', error: err }
+  }
+
+  const { taskId } = await res.json()
+
+  for (let i = 0; i < MAX_POLLS; i++) {
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL))
+    const pollRes = await fetch(`/api/image/task/${taskId}`, {
+      headers: { 'x-api-key': settings.pixaiApiKey },
+    })
+    if (!pollRes.ok) continue
+    const data = await pollRes.json()
+    if (data.status === 'completed' && data.url) {
+      return { url: data.url }
+    }
+    if (data.status === 'failed') {
+      return { url: '', error: 'Task failed' }
+    }
+  }
+
+  return { url: '', error: 'Timeout' }
+}
+
+/**
+ * 通过 TensorArt API 生成图片并等待结果
+ */
+async function generateTensorArt(
+  tags: string,
+  settings: AppSettings
+): Promise<GenerateImageResult> {
+  const modelId = TENSORART_MODELS[settings.tensorartModel]?.modelId
+  const styleTags = IMAGE_STYLES[settings.imageStyle]?.tags ?? ''
+  const customTags = settings.imageStyleCustom ?? ''
+  const fullTags = [tags, styleTags, customTags].filter(Boolean).join(', ')
+
+  const res = await fetch('/api/image/tensorart', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: fullTags, modelId, apiKey: settings.tensorartApiKey }),
+  })
+
+  if (!res.ok) {
+    const err = await res.text()
+    return { url: '', error: err }
+  }
+
+  const { jobId } = await res.json()
+
+  for (let i = 0; i < MAX_POLLS; i++) {
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL))
+    const pollRes = await fetch(`/api/image/tensorart/${jobId}`, {
+      headers: { 'x-api-key': settings.tensorartApiKey },
+    })
+    if (!pollRes.ok) continue
+    const data = await pollRes.json()
+    if (data.status === 'completed' && data.url) {
+      return { url: data.url }
+    }
+    if (data.status === 'failed') {
+      return { url: '', error: 'Task failed' }
+    }
+  }
+
+  return { url: '', error: 'Timeout' }
+}
+
+/**
+ * 统一图片生成入口 — 根据 settings.imageProvider 自动路由
+ */
+export async function generateImage(
+  tags: string,
+  settings: AppSettings
+): Promise<GenerateImageResult> {
+  if (settings.imageProvider === 'tensorart') {
+    return generateTensorArt(tags, settings)
+  }
+  return generatePixAI(tags, settings)
+}
+
+/**
+ * 通过 /api/chat 生成 TAG（单次非流式调用）
+ */
+export async function generateTagsViaChat(
+  prompt: string,
+  settings: AppSettings
+): Promise<string> {
+  const res = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messages: [{ role: 'user', content: prompt }],
+      model: settings.chatModel,
+      apiKey: settings.chatApiKey,
+      stream: false,
+    }),
+  })
+  if (!res.ok) return ''
+  const data = await res.json()
+  return data.content ?? data.text ?? ''
+}
