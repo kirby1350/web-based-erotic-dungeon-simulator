@@ -23,7 +23,8 @@ async function generatePixAI(
   const res = await fetch('/api/image/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt: fullTags, modelId, apiKey: settings.pixaiApiKey }),
+    // route expects "prompts" not "prompt"
+    body: JSON.stringify({ prompts: fullTags, modelId, apiKey: settings.pixaiApiKey }),
   })
 
   if (!res.ok) {
@@ -31,19 +32,28 @@ async function generatePixAI(
     return { url: '', error: err }
   }
 
-  const { taskId } = await res.json()
+  const createData = await res.json()
+  // PixAI returns { id: "...", status: "waiting", outputs: { mediaUrls: [] } }
+  const taskId = createData?.id
+
+  if (!taskId) {
+    return { url: '', error: `无法获取 taskId，响应: ${JSON.stringify(createData)}` }
+  }
 
   for (let i = 0; i < MAX_POLLS; i++) {
     await new Promise((r) => setTimeout(r, POLL_INTERVAL))
     const pollRes = await fetch(`/api/image/task/${taskId}`, {
-      headers: { 'x-api-key': settings.pixaiApiKey },
+      headers: { 'x-pixai-key': settings.pixaiApiKey },
     })
     if (!pollRes.ok) continue
     const data = await pollRes.json()
-    if (data.status === 'completed' && data.url) {
-      return { url: data.url }
+    // PixAI poll: { status: "completed", outputs: { mediaUrls: ["https://..."] } }
+    const status = data?.status
+    const url = data?.outputs?.mediaUrls?.[0]
+    if (status === 'completed' && url) {
+      return { url }
     }
-    if (data.status === 'failed') {
+    if (status === 'failed') {
       return { url: '', error: 'Task failed' }
     }
   }
