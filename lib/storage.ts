@@ -53,3 +53,47 @@ export function clearGameSave(): void {
   if (typeof window === 'undefined') return
   localStorage.removeItem(GAME_KEY)
 }
+
+// ─── 已保存的客人 ────────────────────────────────────────────────────────────────
+
+import { Guest } from '@/lib/types'
+
+const SAVED_GUESTS_KEY = 'saved_guests'
+
+export function getSavedGuests(): Guest[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem(SAVED_GUESTS_KEY)
+    if (!raw) return []
+    return JSON.parse(raw) as Guest[]
+  } catch {
+    return []
+  }
+}
+
+export function saveGuest(guest: Guest): void {
+  if (typeof window === 'undefined') return
+  const existing = getSavedGuests()
+  const updated = [guest, ...existing.filter((g) => g.id !== guest.id)].slice(0, 20)
+  localStorage.setItem(SAVED_GUESTS_KEY, JSON.stringify(updated))
+}
+
+export function deleteSavedGuest(id: string): void {
+  if (typeof window === 'undefined') return
+  const updated = getSavedGuests().filter((g) => g.id !== id)
+  localStorage.setItem(SAVED_GUESTS_KEY, JSON.stringify(updated))
+}
+
+// ─── 客人倾向偏好 ────────────────────────────────────────────────────────────────
+
+const GUEST_PREF_KEY = 'guest_preference'
+
+export function getGuestPreference(): string {
+  if (typeof window === 'undefined') return ''
+  return localStorage.getItem(GUEST_PREF_KEY) ?? ''
+}
+
+export function saveGuestPreference(pref: string): void {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(GUEST_PREF_KEY, pref)
+}
