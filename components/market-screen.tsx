@@ -175,7 +175,7 @@ export function MarketScreen({ save, settings, onSaveChange, onBack }: MarketScr
 
   if (step === 'purchase-dialogue' && purchasedGirl) {
     return (
-      <div className="flex flex-col h-screen bg-background">
+      <div className="flex flex-col h-full bg-background">
         <header className="border-b border-border px-4 py-3 flex items-center gap-3">
           <h1 className="text-sm font-bold gold-text">新成员加入</h1>
           <Badge variant="secondary" className="text-[10px] h-5 px-2">
@@ -228,7 +228,7 @@ export function MarketScreen({ save, settings, onSaveChange, onBack }: MarketScr
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-full bg-background">
       <header className="border-b border-border px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" className="w-7 h-7" onClick={onBack}><ArrowLeft className="w-4 h-4" /></Button>

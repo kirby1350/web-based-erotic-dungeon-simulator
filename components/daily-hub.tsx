@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Settings, Coins, Calendar, Store, Sword, ShoppingBag, Heart, Users, X, Send, Loader2 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 import { GameSave, MonstGirl, AppSettings } from '@/lib/types'
 import { GirlCard } from '@/components/girl-card'
 import { InteractionPanel } from '@/components/interaction-panel'
@@ -18,10 +17,10 @@ interface DailyHubProps {
   settings: AppSettings
   onSaveChange: (save: GameSave) => void
   onNavigate: (tab: GameTab) => void
+  onOpenSettings: () => void
 }
 
-export function DailyHub({ save, settings, onSaveChange, onNavigate }: DailyHubProps) {
-  const router = useRouter()
+export function DailyHub({ save, settings, onSaveChange, onNavigate, onOpenSettings }: DailyHubProps) {
   const [girlsDrawerOpen, setGirlsDrawerOpen] = useState(false)
   const [interactingWith, setInteractingWith] = useState<MonstGirl | null>(null)
   const [chatMessages, setChatMessages] = useState<{ role: 'system' | 'player'; text: string }[]>([])
@@ -94,8 +93,8 @@ export function DailyHub({ save, settings, onSaveChange, onNavigate }: DailyHubP
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background">
-      <header className="border-b border-border px-4 py-2.5 flex items-center justify-between">
+    <div className="flex flex-col h-full bg-background">
+      <header className="border-b border-border px-4 py-2.5 flex items-center justify-between shrink-0">
         <button
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-secondary/50"
           onClick={() => setGirlsDrawerOpen(true)}
@@ -117,7 +116,7 @@ export function DailyHub({ save, settings, onSaveChange, onNavigate }: DailyHubP
           </div>
         </div>
 
-        <Button variant="ghost" size="icon" className="w-7 h-7" onClick={() => router.push('/settings')}>
+        <Button variant="ghost" size="icon" className="w-7 h-7" onClick={onOpenSettings}>
           <Settings className="w-4 h-4" />
         </Button>
       </header>
@@ -193,10 +192,10 @@ export function DailyHub({ save, settings, onSaveChange, onNavigate }: DailyHubP
       </div>
 
       {girlsDrawerOpen && (
-        <div className="fixed inset-0 z-50 flex">
-          <div className="bg-black/50 flex-1" onClick={() => setGirlsDrawerOpen(false)} />
-          <div className="w-80 bg-card border-l border-border flex flex-col h-full">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <div className="absolute inset-0 z-50 flex">
+          {/* Drawer slides from the LEFT */}
+          <div className="w-72 bg-card border-r border-border flex flex-col h-full shadow-2xl">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
               <h2 className="text-sm font-bold gold-text">馆内魔物娘</h2>
               <Button variant="ghost" size="icon" className="w-7 h-7" onClick={() => setGirlsDrawerOpen(false)}>
                 <X className="w-4 h-4" />
@@ -217,7 +216,7 @@ export function DailyHub({ save, settings, onSaveChange, onNavigate }: DailyHubP
                       <GirlCard girl={girl} settings={settings} onImageCached={handleImageCached} compact className="w-full" />
                     </div>
                     <div className="flex-1 min-w-0 space-y-1.5">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-xs font-semibold gold-text">{girl.name}</span>
                         <Badge variant="secondary" className="text-[8px] h-3.5 px-1">{girl.race}</Badge>
                       </div>
@@ -243,6 +242,8 @@ export function DailyHub({ save, settings, onSaveChange, onNavigate }: DailyHubP
               )}
             </div>
           </div>
+          {/* Backdrop */}
+          <div className="flex-1 bg-black/50" onClick={() => setGirlsDrawerOpen(false)} />
         </div>
       )}
 

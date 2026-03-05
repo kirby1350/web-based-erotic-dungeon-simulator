@@ -286,7 +286,7 @@ export function ServiceScreen({ save, type, settings, onSaveChange, onBack }: Se
   // ─── UI ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+      <div className="flex flex-col h-full bg-background">
       {/* Header */}
       <header className="border-b border-border px-4 py-3 flex items-center gap-3">
         <Button
