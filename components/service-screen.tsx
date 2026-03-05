@@ -67,7 +67,9 @@ export function ServiceScreen({ save, type, settings, onSaveChange, onBack }: Se
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [goldEarned, setGoldEarned] = useState(0)
   const [openingText, setOpeningText] = useState('')
+  const [openingDialogue, setOpeningDialogue] = useState('') // character interaction line
   const [openingLoading, setOpeningLoading] = useState(false)
+  const [dialogueLoading, setDialogueLoading] = useState(false)
   const [inputValue, setInputValue] = useState('')
 
   // Guest preference panel
@@ -182,27 +184,65 @@ export function ServiceScreen({ save, type, settings, onSaveChange, onBack }: Se
     })
     setSession(newSession)
     setStep('opening')
+    setOpeningText('')
+    setOpeningDialogue('')
     setOpeningLoading(true)
+
+    const apiKey = settings.chatModel.startsWith('grok') ? settings.grokApiKey : settings.chatApiKey
+
+    // Step 1: Generate scene description
     try {
       const sceneType = type === 'service' ? 'service' : 'training'
       const prompt = buildOpeningDialoguePrompt(sceneType, player, sessionGirls, { guest: guest ?? undefined })
-      const apiKey = settings.chatModel.startsWith('grok') ? settings.grokApiKey : settings.chatApiKey
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], model: settings.chatModel, apiKey, stream: false }),
       })
-      if (res.ok) {
-        const data = await res.json()
-        setOpeningText((data.content ?? data.text ?? '').trim())
-      } else {
-        setOpeningText(type === 'service' ? '客人踏入了包间……' : '调教室的门缓缓关上……')
-      }
+      const sceneText = res.ok
+        ? ((await res.json()).content ?? '').trim() || (type === 'service' ? '客人踏入了包间……' : '调教室的门缓缓关上……')
+        : (type === 'service' ? '客人踏入了包间……' : '调教室的门缓缓关上……')
+      setOpeningText(sceneText)
     } catch {
       setOpeningText(type === 'service' ? '客人踏入了包间……' : '调教室的门缓缓关上……')
     } finally {
       setOpeningLoading(false)
     }
+
+    // Step 2: Generate a character interaction line (streaming) based on scene + characters
+    setDialogueLoading(true)
+    try {
+      const names = sessionGirls.map((g) => `${g.name}（${g.race}）`).join('、')
+      const guestLine = guest ? `客人 ${guest.name}（${guest.race}，需求：${guest.desires}）` : ''
+      const dialoguePrompt = `根据以下场景，生成一句角色之间真实的互动对话（含说话人名字，50字以内，直接输出对话，不要旁白）：\n场景：${openingText || (type === 'service' ? '客人踏入包间' : '调教室')}\n在场角色：${names}${guestLine ? '，' + guestLine : ''}`
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: dialoguePrompt }],
+          model: settings.chatModel, apiKey, stream: true,
+        }),
+      })
+      if (res.ok && res.body) {
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let full = ''
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          for (const line of decoder.decode(value, { stream: true }).split('\n')) {
+            if (!line.startsWith('data: ')) continue
+            const data = line.slice(6)
+            if (data === '[DONE]') continue
+            try {
+              full += JSON.parse(data).choices?.[0]?.delta?.content ?? ''
+              setOpeningDialogue(full)
+            } catch { /* skip */ }
+          }
+        }
+      }
+    } catch { /* ignore */ }
+    finally { setDialogueLoading(false) }
   }
 
   // ─── Session helpers ─────────────────────────────────────────────────────────
@@ -480,10 +520,12 @@ export function ServiceScreen({ save, type, settings, onSaveChange, onBack }: Se
 
       {/* ── Step: opening ── */}
       {step === 'opening' && (
-        <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center gap-6 max-w-lg mx-auto w-full">
+        <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center gap-4 max-w-lg mx-auto w-full">
           <h2 className="text-base font-bold gold-text">
             {type === 'service' ? '迎接客人' : '进入调教室'}
           </h2>
+
+          {/* Scene description */}
           <div className="bg-card border border-border rounded-xl p-5 w-full min-h-[80px] flex items-center justify-center">
             {openingLoading ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -494,15 +536,33 @@ export function ServiceScreen({ save, type, settings, onSaveChange, onBack }: Se
               <p className="text-sm leading-relaxed text-foreground/90 text-center">{openingText}</p>
             )}
           </div>
+
+          {/* Character interaction line */}
+          {(dialogueLoading || openingDialogue) && (
+            <div className="bg-secondary/20 border border-border rounded-xl p-4 w-full min-h-[52px] flex items-center">
+              {dialogueLoading && !openingDialogue ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>角色互动中…</span>
+                </div>
+              ) : (
+                <p className="text-sm leading-relaxed text-foreground/80 italic">
+                  {openingDialogue}
+                  {dialogueLoading && <span className="inline-block w-1 h-4 ml-0.5 bg-foreground/60 animate-pulse align-middle" />}
+                </p>
+              )}
+            </div>
+          )}
+
           <Button
             className="h-10 px-8 glow-btn gap-2"
-            disabled={openingLoading}
+            disabled={openingLoading || dialogueLoading}
             onClick={() => {
-              if (openingText) {
-                const seed: ChatMessage = { role: 'assistant', content: openingText }
-                setMessages([seed])
-                setLastAiMsg(openingText)
-              }
+              const seed: ChatMessage[] = []
+              if (openingText) seed.push({ role: 'assistant', content: openingText })
+              if (openingDialogue) seed.push({ role: 'assistant', content: openingDialogue })
+              setMessages(seed)
+              setLastAiMsg(openingDialogue || openingText)
               setStep('active')
             }}
           >

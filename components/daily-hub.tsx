@@ -58,12 +58,18 @@ export function DailyHub({ save, settings, onSaveChange, onNavigate, onOpenSetti
     })
       .then((r) => r.json())
       .then((data) => {
-        const text = (data.content ?? data.text ?? '').trim() || fallback
-        saveOpeningCache(save.currentDay, text)
-        setChatMessages([{ role: 'system', text }])
+        const text = (data.content ?? data.text ?? '').trim()
+        if (text) {
+          // Only cache on success
+          saveOpeningCache(save.currentDay, text)
+          setChatMessages([{ role: 'system', text }])
+        } else {
+          // Empty response — show fallback but don't cache so next visit retries
+          setChatMessages([{ role: 'system', text: fallback }])
+        }
       })
       .catch(() => {
-        saveOpeningCache(save.currentDay, fallback)
+        // Network/API error — show fallback but don't cache
         setChatMessages([{ role: 'system', text: fallback }])
       })
       .finally(() => setChatLoading(false))
