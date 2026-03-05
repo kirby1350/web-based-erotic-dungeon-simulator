@@ -29,28 +29,27 @@ export function DailyHub({ save, settings, onSaveChange, onNavigate, onOpenSetti
   const [chatMessages, setChatMessages] = useState<{ role: 'system' | 'player'; text: string }[]>([])
   const [chatInput, setChatInput] = useState('')
   const [chatLoading, setChatLoading] = useState(false)
-  const openedRef = useRef(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const { player, girls } = save
 
-  // ─── Opening dialogue (cached per day) ────────────────────────────────────
+  // ─── Opening dialogue (cached per day, generates once on mount) ──────────
   useEffect(() => {
-    if (openedRef.current) return
-    openedRef.current = true
+    let ignore = false
 
     const fallback = `欢迎回来，${player.name}。今天是第 ${save.currentDay} 天，你的娼馆已经开门了。`
 
-    // Check cache first
+    // Hit cache first — only valid for the current day
     const cached = getOpeningCache()
     if (cached && cached.day === save.currentDay) {
       setChatMessages([{ role: 'system', text: cached.text }])
       return
     }
 
-    // Generate new opening for this day
+    // No valid cache — generate a new opening
     setChatLoading(true)
     const apiKey = settings.chatModel.startsWith('grok') ? settings.grokApiKey : settings.chatApiKey
     const prompt = buildOpeningDialoguePrompt('game-start', player, girls)
+
     fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -58,22 +57,26 @@ export function DailyHub({ save, settings, onSaveChange, onNavigate, onOpenSetti
     })
       .then((r) => r.json())
       .then((data) => {
-        console.log('[v0] opening dialogue response:', JSON.stringify(data))
+        if (ignore) return
         const text = (data.content ?? data.text ?? '').trim()
         if (text) {
           saveOpeningCache(save.currentDay, text)
           setChatMessages([{ role: 'system', text }])
         } else {
-          console.log('[v0] empty text, showing fallback. data was:', data)
+          // API returned empty — show fallback, do NOT cache so next visit retries
           setChatMessages([{ role: 'system', text: fallback }])
         }
       })
-      .catch((err) => {
-        console.log('[v0] fetch error:', err)
+      .catch(() => {
+        if (ignore) return
+        // Network error — show fallback, do NOT cache
         setChatMessages([{ role: 'system', text: fallback }])
       })
-      .finally(() => setChatLoading(false))
-  }, [])
+      .finally(() => { if (!ignore) setChatLoading(false) })
+
+    return () => { ignore = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [save.currentDay]) // re-run when day advances
 
   // ─── New girl purchased — send welcome dialogue ────────────────────────────
   useEffect(() => {
