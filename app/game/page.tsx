@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { X } from 'lucide-react'
-import { getGameSave, saveGameSave, getSettings, saveSettings } from '@/lib/storage'
+import { X, Trash2 } from 'lucide-react'
+import { getGameSave, saveGameSave, getSettings, saveSettings, clearGameSave } from '@/lib/storage'
 import { GameSave, AppSettings } from '@/lib/types'
 import { DailyHub } from '@/components/daily-hub'
 import { ServiceScreen } from '@/components/service-screen'
@@ -20,6 +20,17 @@ export default function GamePage() {
   const [loaded, setLoaded] = useState(false)
   const [activeTab, setActiveTab] = useState<GameTab>('hub')
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [confirmReset, setConfirmReset] = useState(false)
+
+  const handleReset = () => {
+    if (!confirmReset) {
+      setConfirmReset(true)
+      setTimeout(() => setConfirmReset(false), 4000)
+      return
+    }
+    clearGameSave()
+    router.replace('/setup')
+  }
 
   useEffect(() => {
     const s = getGameSave()
@@ -94,6 +105,19 @@ export default function GamePage() {
           </div>
           <div className="flex-1 overflow-y-auto p-4">
             <SettingsPanel settings={settings} onSettingsChange={handleSettingsChange} />
+          </div>
+          {/* 危险操作 — 重置存档 */}
+          <div className="shrink-0 border-t border-rose-500/20 p-4">
+            <p className="text-[10px] text-muted-foreground/50 uppercase tracking-widest mb-2">危险操作</p>
+            <Button
+              variant="outline"
+              size="sm"
+              className={`w-full h-8 text-xs ${confirmReset ? 'border-rose-500 text-rose-400 hover:bg-rose-500/10' : 'border-rose-500/30 text-rose-400/60 hover:border-rose-500 hover:text-rose-400'}`}
+              onClick={handleReset}
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+              {confirmReset ? '再次点击确认重置' : '重置存档'}
+            </Button>
           </div>
         </div>
 
