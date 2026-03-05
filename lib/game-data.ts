@@ -63,6 +63,7 @@ export const GIRL_TEMPLATE_IMAGES: (string | null)[] = [
   null,       // 维拉
   null,       // 艾拉
   '/presets/wenxiang.jpg', // 文香
+  '/presets/zhixi.jpg',    // 志希
 ]
 
 export const GIRL_TEMPLATES: Omit<MonstGirl, 'id' | 'imageUrl'>[] = [
@@ -131,7 +132,7 @@ export const GIRL_TEMPLATES: Omit<MonstGirl, 'id' | 'imageUrl'>[] = [
     bodyTags: 'lamia, green hair, snake lower body, green scales, large breasts, long snake tail',
     personality: '成熟妩媚，擅长诱惑，对喜欢的人会紧紧缠绕，占有欲强',
     personalityTags: 'mature, seductive, possessive, clingy when attached',
-    outfit: '肚皮舞风格，金色腰链，薄纱上衣，大量黄金装饰',
+    outfit: '肚皮舞风格，金��腰链，薄纱上衣，大量黄金装饰',
     outfitTags: 'belly dancer outfit, gold chain belt, sheer top, gold jewelry, dancer',
     otherDesc: '前任冒险家的同伴，对方阵亡后独自生活',
     otherTags: 'former adventurer companion, lone survivor',
@@ -181,25 +182,25 @@ export const GIRL_TEMPLATES: Omit<MonstGirl, 'id' | 'imageUrl'>[] = [
     price: 0,
   },
   {
-    name: '文香',
-    race: '阿拉克涅',
-    age: '23',
-    bodyDesc: '黑发长发，蓝色大眼，圆形眼镜，上身丰满，下身为黑色蜘蛛体，皮肤白皙',
-    bodyTags: 'arachne, black hair, long hair, blue eyes, glasses, round glasses, pale skin, huge breasts, spider lower body, eight legs',
-    personality: '极度害羞内向，书虫气质，表面安静被动，内心对被束缚与支配有隐秘渴望',
-    personalityTags: 'shy, introverted, bookworm, quiet, secretly desires bondage and submission',
-    outfit: '破损的图书馆员长袍 + 蛛丝缠身',
-    outfitTags: 'torn clothes, librarian outfit, black ribbon, choker, spider web silk, translucent silk drapery, detached sleeves, damaged dress',
-    otherDesc: '原本是沉迷书籍的图书馆守护灵，在接触禁忌古籍后与阿拉克涅诅咒融合，变成半人半蛛的魔物娘',
-    otherTags: 'library guardian spirit, cursed, forbidden knowledge, ancient library',
-    affection: 18,
-    obedience: 12,
-    lewdness: 25,
+    name: '志希',
+    race: '拉米亚',
+    age: '18',
+    bodyDesc: '酒红色长卷发，天蓝色眼睛，猫一般的嘴巴，皮肤白皙，上身苗条丰满，下身为深紫色蛇尾，带有光滑鳞片',
+    bodyTags: 'lamia, monster girl, snake girl, snake tail, long tail, wine red hair, long hair, wavy hair, blue eyes, sky blue eyes, pale skin, medium breasts, cleavage, cat mouth',
+    personality: '好奇心旺盛，自由奔放，像疯科学家一样热爱实验和香水调制，表面随性不羁，内心对新奇刺激的事物充满热情，偶尔表现出嗅觉敏感和无防备的一面',
+    personalityTags: 'curious, mad scientist, free-spirited, experimental, scent fetish, laid-back, unpredictable, playful, genius chemist',
+    outfit: '破损的白大褂 + 蛇尾缠绕的实验服 + 自制香水瓶饰品',
+    outfitTags: 'lab coat, torn clothes, damaged white coat, black ribbon, choker, experimental outfit, perfume bottle accessory, translucent fabric, detached sleeves, snake scale patterns',
+    otherDesc: '原本是痴迷于香水和奇怪实验的化学系偶像，在一次禁忌调香实验中与古老蛇灵融合，变成了拥有蛇尾的拉米亚魔物娘。现在她用蛇尾和自制催情香水"实验"客人，追求更强烈的气味与感觉',
+    otherTags: 'perfume maker, mad scientist, forbidden experiment, alchemy, scent manipulation, ancient snake spirit fusion, mysterious laboratory',
+    affection: 25,
+    obedience: 18,
+    lewdness: 35,
     skills: [],
-    imageTags: '1girl, solo, arachne, monster girl, spider girl, spider legs, multiple legs, drider, black hair, long hair, bangs, sidelocks, glasses, round glasses, blue eyes, pale skin, shy, embarrassed, blushing, huge breasts, cleavage, librarian, holding book, cobweb, spider web background, silk, torn clothes, masterpiece, best quality, highly detailed, anime',
-    bust: 95,
-    waist: 58,
-    hip: 88,
+    imageTags: '1girl, solo, lamia, monster girl, snake tail, long tail, wine red hair, long hair, wavy hair, blue eyes, sky blue eyes, pale skin, embarrassed, blushing, cat mouth, medium breasts, cleavage, lab coat, torn clothes, holding perfume bottle, laboratory background, potion bottles, masterpiece, best quality, highly detailed, anime',
+    bust: 86,
+    waist: 57,
+    hip: 85,
     price: 0,
   },
 ]
