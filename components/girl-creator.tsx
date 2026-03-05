@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Slider } from '@/components/ui/slider'
 import { Button } from '@/components/ui/button'
 import { MonstGirl, AppSettings } from '@/lib/types'
-import { GIRL_TEMPLATES } from '@/lib/game-data'
+import { GIRL_TEMPLATES, GIRL_TEMPLATE_IMAGES } from '@/lib/game-data'
 import { GirlTemplates } from '@/components/girl-templates'
 import { ImageDisplay } from '@/components/image-display'
 import { buildTagGenerationPrompt } from '@/lib/prompt-builder'
@@ -28,10 +28,14 @@ export function GirlCreator({ settings, onComplete }: GirlCreatorProps) {
   const [generatingTags, setGeneratingTags] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | undefined>()
   const [imageKey, setImageKey] = useState(0)
+  const [selectedTemplateIdx, setSelectedTemplateIdx] = useState<number | null>(null)
 
-  const handleTemplateSelect = (tmpl: Omit<MonstGirl, 'id' | 'imageUrl'>) => {
+  const handleTemplateSelect = (tmpl: Omit<MonstGirl, 'id' | 'imageUrl'>, idx: number) => {
     setDraft(tmpl)
-    setPreviewUrl(undefined)
+    // Inherit preset image if available, reset image state
+    const presetImg = GIRL_TEMPLATE_IMAGES[idx] ?? undefined
+    setPreviewUrl(presetImg)
+    setSelectedTemplateIdx(idx)
     setImageKey(0)
   }
 
@@ -91,7 +95,7 @@ export function GirlCreator({ settings, onComplete }: GirlCreatorProps) {
           <h3 className="text-sm font-semibold text-foreground/80">选择初始魔物娘模板</h3>
           <p className="text-xs text-muted-foreground mt-0.5">下一步可以自定义她的详细设定</p>
         </div>
-        <GirlTemplates onSelect={handleTemplateSelect} />
+        <GirlTemplates onSelect={(tmpl, idx) => handleTemplateSelect(tmpl, idx)} />
         <Button className="w-full h-11 glow-btn" disabled={!draft} onClick={handleContinueToCustomize}>
           自定义设定
         </Button>
@@ -203,7 +207,7 @@ export function GirlCreator({ settings, onComplete }: GirlCreatorProps) {
               key={imageKey}
               tags={draft.imageTags}
               settings={settings}
-              cachedUrl={imageKey === 0 ? previewUrl : undefined}
+              cachedUrl={previewUrl}
               onUrlCached={setPreviewUrl}
               alt={draft.name}
               autoGenerate={imageKey > 0}

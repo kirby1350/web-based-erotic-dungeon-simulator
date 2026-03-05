@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Settings, Coins, Calendar, Store, Sword, ShoppingBag, Heart, Users, X, Send, Loader2 } from 'lucide-react'
+import { Settings, Coins, Calendar, Store, Sword, ShoppingBag, Heart, Users, X, Send, Loader2, Moon } from 'lucide-react'
 import { GameSave, MonstGirl, AppSettings } from '@/lib/types'
 import { ImageDisplay } from '@/components/image-display'
 import { InteractionPanel } from '@/components/interaction-panel'
@@ -9,7 +9,7 @@ import { StatBar } from '@/components/stat-bar'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { buildOpeningDialoguePrompt } from '@/lib/prompt-builder'
-import { getOpeningCache, saveOpeningCache } from '@/lib/storage'
+import { getOpeningCache, saveOpeningCache, clearOpeningCache } from '@/lib/storage'
 import { cn } from '@/lib/utils'
 import type { GameTab } from '@/app/game/page'
 
@@ -113,6 +113,11 @@ export function DailyHub({ save, settings, onSaveChange, onNavigate, onOpenSetti
     if (girl) updateGirl({ ...girl, imageUrl: url })
   }
 
+  const advanceDay = () => {
+    clearOpeningCache()
+    onSaveChange({ ...save, currentDay: save.currentDay + 1 })
+  }
+
   const sendChat = async () => {
     if (!chatInput.trim()) return
     const text = chatInput.trim()
@@ -150,9 +155,19 @@ export function DailyHub({ save, settings, onSaveChange, onNavigate, onOpenSetti
         </button>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">第 {save.currentDay} 天</span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">第 {save.currentDay} 天</span>
+            </div>
+            <button
+              className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-amber-400 border border-border hover:border-amber-400/40 rounded-md px-1.5 py-0.5 transition-colors"
+              onClick={advanceDay}
+              title="结束今天，进入下一天"
+            >
+              <Moon className="w-3 h-3" />
+              结束今天
+            </button>
           </div>
           <h1 className="text-sm font-bold gold-text tracking-wide">{player.name}的娼馆</h1>
           <div className="flex items-center gap-1.5">

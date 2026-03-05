@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
 interface GirlTemplatesProps {
-  onSelect: (template: Omit<MonstGirl, 'id' | 'imageUrl'>) => void
+  onSelect: (template: Omit<MonstGirl, 'id' | 'imageUrl'>, idx: number) => void
 }
 
 export function GirlTemplates({ onSelect }: GirlTemplatesProps) {
@@ -17,7 +17,7 @@ export function GirlTemplates({ onSelect }: GirlTemplatesProps) {
 
   const handleSelect = (idx: number) => {
     setSelected(idx)
-    onSelect(GIRL_TEMPLATES[idx])
+    onSelect(GIRL_TEMPLATES[idx], idx)
   }
 
   return (
