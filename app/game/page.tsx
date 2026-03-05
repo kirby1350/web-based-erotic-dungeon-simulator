@@ -95,7 +95,7 @@ export default function GamePage() {
 
         {/* Settings drawer — slides in from right, scoped inside frame */}
         <div
-          className={`absolute inset-y-0 right-0 w-80 bg-card border-l border-border flex flex-col z-50 transition-transform duration-300 ease-in-out ${settingsOpen ? 'translate-x-0' : 'translate-x-full'}`}
+          className={`absolute inset-y-0 right-0 w-96 bg-card border-l border-border flex flex-col z-50 transition-transform duration-300 ease-in-out ${settingsOpen ? 'translate-x-0' : 'translate-x-full'}`}
         >
           <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
             <h2 className="text-sm font-bold gold-text">设置</h2>

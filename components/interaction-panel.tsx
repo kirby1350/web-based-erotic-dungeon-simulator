@@ -36,6 +36,7 @@ export function InteractionPanel({ girl, player, settings, onClose, onGirlUpdate
   const [openingLoading, setOpeningLoading] = useState(false)
   const [newOutfit, setNewOutfit] = useState(girl.outfit)
   const [newOutfitTags, setNewOutfitTags] = useState(girl.outfitTags)
+  const [outfitImageKey, setOutfitImageKey] = useState(0) // bump to force ImageDisplay re-mount after outfit change
   const [giftFeedback, setGiftFeedback] = useState('')
   const [imageUrl, setImageUrl] = useState(girl.imageUrl)
 
@@ -84,6 +85,7 @@ export function InteractionPanel({ girl, player, settings, onClose, onGirlUpdate
     }
     onGirlUpdated(updated)
     setImageUrl(undefined)
+    setOutfitImageKey((k) => k + 1) // force re-mount → autoGenerate will fire
   }
 
   return (
@@ -199,14 +201,21 @@ export function InteractionPanel({ girl, player, settings, onClose, onGirlUpdate
 
               {/* Chat mode */}
               {mode === 'chat' && (
-                <ChatEngine
-                  systemPrompt={systemPrompt}
-                  messages={messages}
-                  onMessagesChange={setMessages}
-                  settings={settings}
-                  className="flex-1 min-h-0"
-                  placeholder={`和 ${girl.name} 说点什么…`}
-                />
+                openingLoading ? (
+                  <div className="flex-1 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>{girl.name} 正在思考开场白…</span>
+                  </div>
+                ) : (
+                  <ChatEngine
+                    systemPrompt={systemPrompt}
+                    messages={messages}
+                    onMessagesChange={setMessages}
+                    settings={settings}
+                    className="flex-1 min-h-0"
+                    placeholder={`和 ${girl.name} 说点什么…`}
+                  />
+                )
               )}
 
               {/* Gift mode */}
@@ -238,24 +247,42 @@ export function InteractionPanel({ girl, player, settings, onClose, onGirlUpdate
 
               {/* Outfit mode */}
               {mode === 'outfit' && (
-                <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">服装描述</Label>
-                    <Input value={newOutfit} onChange={(e) => setNewOutfit(e.target.value)} className="bg-input text-sm h-9" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">服装 TAG（英文）</Label>
-                    <Input
-                      value={newOutfitTags}
-                      onChange={(e) => setNewOutfitTags(e.target.value)}
-                      className="bg-input text-xs font-mono h-9"
-                      placeholder="dress, white, lace, ..."
+                <div className="flex-1 flex gap-4 p-4 overflow-y-auto">
+                  {/* Left: preview */}
+                  <div className="w-36 shrink-0">
+                    <ImageDisplay
+                      key={outfitImageKey}
+                      tags={newOutfitTags
+                        ? girl.imageTags.replace(girl.outfitTags, newOutfitTags)
+                        : girl.imageTags}
+                      settings={settings}
+                      cachedUrl={outfitImageKey === 0 ? imageUrl : undefined}
+                      onUrlCached={(url) => { setImageUrl(url); onGirlUpdated({ ...girl, imageUrl: url }) }}
+                      alt={girl.name}
+                      autoGenerate={outfitImageKey > 0}
+                      className="w-full"
                     />
                   </div>
-                  <Button className="w-full h-9 text-sm" onClick={handleOutfitChange} disabled={!newOutfit.trim()}>
-                    确认换装
-                  </Button>
-                  <p className="text-[10px] text-muted-foreground">换装后图片将重新生成</p>
+                  {/* Right: inputs */}
+                  <div className="flex-1 space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">服装描述</Label>
+                      <Input value={newOutfit} onChange={(e) => setNewOutfit(e.target.value)} className="bg-input text-sm h-9" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">服装 TAG（英文，用于生图）</Label>
+                      <Input
+                        value={newOutfitTags}
+                        onChange={(e) => setNewOutfitTags(e.target.value)}
+                        className="bg-input text-xs font-mono h-9"
+                        placeholder="dress, white, lace, ..."
+                      />
+                    </div>
+                    <Button className="w-full h-9 text-sm glow-btn" onClick={handleOutfitChange} disabled={!newOutfit.trim()}>
+                      确认换装并重新生图
+                    </Button>
+                    <p className="text-[10px] text-muted-foreground">确认后将根据新服装 TAG 自动生成图片</p>
+                  </div>
                 </div>
               )}
             </div>

@@ -194,7 +194,7 @@ export function DailyHub({ save, settings, onSaveChange, onNavigate, onOpenSetti
       {girlsDrawerOpen && (
         <div className="absolute inset-0 z-50 flex">
           {/* Drawer slides from the LEFT */}
-          <div className="w-72 bg-card border-r border-border flex flex-col h-full shadow-2xl">
+          <div className="w-80 bg-card border-r border-border flex flex-col h-full shadow-2xl">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
               <h2 className="text-sm font-bold gold-text">馆内魔物娘</h2>
               <Button variant="ghost" size="icon" className="w-7 h-7" onClick={() => setGirlsDrawerOpen(false)}>
