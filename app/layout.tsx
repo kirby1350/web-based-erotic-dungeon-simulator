@@ -16,8 +16,8 @@ const _notoSerifSC = Noto_Serif_SC({
 })
 
 export const metadata: Metadata = {
-  title: '地下城探险模拟器',
-  description: '一款基于AI的文字地下城角色扮演冒险游戏',
+  title: 'API 配置中心',
+  description: '管理文字模型与图片生成模型的 API 密钥和预设参数',
 }
 
 export default function RootLayout({

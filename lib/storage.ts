@@ -1,67 +1,28 @@
-import { AppSettings, IMAGE_STYLES, IMAGE_MODELS, TENSORART_MODELS } from '@/lib/types'
+import { AppSettings, DEFAULT_SETTINGS, IMAGE_STYLES, IMAGE_MODELS, TENSORART_MODELS } from '@/lib/types'
 
-const SETTINGS_KEY = 'dungeon_settings'
-const CHARACTER_KEY = 'dungeon_character'
+const SETTINGS_KEY = 'app_settings'
 
 const VALID_IMAGE_STYLES = Object.keys(IMAGE_STYLES)
 const VALID_IMAGE_MODELS = Object.keys(IMAGE_MODELS)
 const VALID_TENSORART_MODELS = Object.keys(TENSORART_MODELS)
 
 export function getSettings(): AppSettings {
-  if (typeof window === 'undefined') {
-    return getDefaultSettings()
-  }
+  if (typeof window === 'undefined') return { ...DEFAULT_SETTINGS }
   try {
     const raw = localStorage.getItem(SETTINGS_KEY)
-    if (!raw) return getDefaultSettings()
+    if (!raw) return { ...DEFAULT_SETTINGS }
     const parsed = JSON.parse(raw)
-    const merged = { ...getDefaultSettings(), ...parsed }
+    const merged = { ...DEFAULT_SETTINGS, ...parsed }
     if (!VALID_IMAGE_STYLES.includes(merged.imageStyle)) merged.imageStyle = 'none'
     if (!VALID_IMAGE_MODELS.includes(merged.imageModel)) merged.imageModel = 'haruka_v2'
     if (!VALID_TENSORART_MODELS.includes(merged.tensorartModel)) merged.tensorartModel = 'wai_nsfw_v16'
     return merged
   } catch {
-    return getDefaultSettings()
+    return { ...DEFAULT_SETTINGS }
   }
 }
 
 export function saveSettings(settings: AppSettings): void {
   if (typeof window === 'undefined') return
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
-}
-
-export function getDefaultSettings(): AppSettings {
-  return {
-    chatModel: 'nalang-max-0826-16k',
-    imageModel: 'haruka_v2',
-    imageStyle: 'none',
-    imageStyleCustom: '',
-    imageProvider: 'pixai',
-    tensorartModel: 'wai_nsfw_v16',
-    chatApiKey: '',
-    grokApiKey: '',
-    pixaiApiKey: '',
-    tensorartApiKey: '',
-  }
-}
-
-export function getCharacter() {
-  if (typeof window === 'undefined') return null
-  try {
-    const raw = localStorage.getItem(CHARACTER_KEY)
-    if (!raw) return null
-    return JSON.parse(raw)
-  } catch {
-    return null
-  }
-}
-
-export function saveCharacter(character: unknown): void {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(CHARACTER_KEY, JSON.stringify(character))
-}
-
-export function clearCharacter(): void {
-  if (typeof window === 'undefined') return
-  localStorage.removeItem(CHARACTER_KEY)
 }
