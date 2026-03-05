@@ -84,7 +84,35 @@ export function deleteSavedGuest(id: string): void {
   localStorage.setItem(SAVED_GUESTS_KEY, JSON.stringify(updated))
 }
 
-// ─── 客人倾向偏好 ────────────────────────────────────────────────────────────────
+// ─── 主界面开场白缓存 ─────────────────────────────────────────────────────────
+
+const OPENING_CACHE_KEY = 'hub_opening_cache'
+
+interface OpeningCache {
+  day: number
+  text: string
+}
+
+export function getOpeningCache(): OpeningCache | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(OPENING_CACHE_KEY)
+    if (!raw) return null
+    return JSON.parse(raw) as OpeningCache
+  } catch {
+    return null
+  }
+}
+
+export function saveOpeningCache(day: number, text: string): void {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(OPENING_CACHE_KEY, JSON.stringify({ day, text }))
+}
+
+export function clearOpeningCache(): void {
+  if (typeof window === 'undefined') return
+  localStorage.removeItem(OPENING_CACHE_KEY)
+}
 
 const GUEST_PREF_KEY = 'guest_preference'
 

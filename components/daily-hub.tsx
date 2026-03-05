@@ -9,6 +9,7 @@ import { StatBar } from '@/components/stat-bar'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { buildOpeningDialoguePrompt } from '@/lib/prompt-builder'
+import { getOpeningCache, saveOpeningCache } from '@/lib/storage'
 import { cn } from '@/lib/utils'
 import type { GameTab } from '@/app/game/page'
 
@@ -18,9 +19,11 @@ interface DailyHubProps {
   onSaveChange: (save: GameSave) => void
   onNavigate: (tab: GameTab) => void
   onOpenSettings: () => void
+  newlyPurchasedGirl?: MonstGirl | null
+  onNewGirlGreeted?: () => void
 }
 
-export function DailyHub({ save, settings, onSaveChange, onNavigate, onOpenSettings }: DailyHubProps) {
+export function DailyHub({ save, settings, onSaveChange, onNavigate, onOpenSettings, newlyPurchasedGirl, onNewGirlGreeted }: DailyHubProps) {
   const [girlsDrawerOpen, setGirlsDrawerOpen] = useState(false)
   const [interactingWith, setInteractingWith] = useState<MonstGirl | null>(null)
   const [chatMessages, setChatMessages] = useState<{ role: 'system' | 'player'; text: string }[]>([])
@@ -30,10 +33,21 @@ export function DailyHub({ save, settings, onSaveChange, onNavigate, onOpenSetti
   const chatEndRef = useRef<HTMLDivElement>(null)
   const { player, girls } = save
 
+  // ─── Opening dialogue (cached per day) ────────────────────────────────────
   useEffect(() => {
     if (openedRef.current) return
     openedRef.current = true
+
     const fallback = `欢迎回来，${player.name}。今天是第 ${save.currentDay} 天，你的娼馆已经开门了。`
+
+    // Check cache first
+    const cached = getOpeningCache()
+    if (cached && cached.day === save.currentDay) {
+      setChatMessages([{ role: 'system', text: cached.text }])
+      return
+    }
+
+    // Generate new opening for this day
     setChatLoading(true)
     const apiKey = settings.chatModel.startsWith('grok') ? settings.grokApiKey : settings.chatApiKey
     const prompt = buildOpeningDialoguePrompt('game-start', player, girls)
@@ -44,12 +58,38 @@ export function DailyHub({ save, settings, onSaveChange, onNavigate, onOpenSetti
     })
       .then((r) => r.json())
       .then((data) => {
-        const text = (data.content ?? data.text ?? '').trim()
-        setChatMessages([{ role: 'system', text: text || fallback }])
+        const text = (data.content ?? data.text ?? '').trim() || fallback
+        saveOpeningCache(save.currentDay, text)
+        setChatMessages([{ role: 'system', text }])
       })
-      .catch(() => setChatMessages([{ role: 'system', text: fallback }]))
+      .catch(() => {
+        saveOpeningCache(save.currentDay, fallback)
+        setChatMessages([{ role: 'system', text: fallback }])
+      })
       .finally(() => setChatLoading(false))
   }, [])
+
+  // ─── New girl purchased — send welcome dialogue ────────────────────────────
+  useEffect(() => {
+    if (!newlyPurchasedGirl) return
+    onNewGirlGreeted?.()
+    const fallback = `${newlyPurchasedGirl.name} 走进了娼馆，四处打量着这里，神情有些拘谨。`
+    const apiKey = settings.chatModel.startsWith('grok') ? settings.grokApiKey : settings.chatApiKey
+    const prompt = buildOpeningDialoguePrompt('purchase', player, [newlyPurchasedGirl], { girl: newlyPurchasedGirl })
+    setChatLoading(true)
+    fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], model: settings.chatModel, apiKey, stream: false }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const text = (data.content ?? data.text ?? '').trim() || fallback
+        setChatMessages((prev) => [...prev, { role: 'system', text }])
+      })
+      .catch(() => setChatMessages((prev) => [...prev, { role: 'system', text: fallback }]))
+      .finally(() => setChatLoading(false))
+  }, [newlyPurchasedGirl])
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })

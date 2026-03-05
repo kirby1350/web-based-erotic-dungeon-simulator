@@ -21,6 +21,8 @@ export default function GamePage() {
   const [activeTab, setActiveTab] = useState<GameTab>('hub')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
+  // Track newly purchased girl to trigger hub dialogue
+  const [newlyPurchasedGirl, setNewlyPurchasedGirl] = useState<import('@/lib/types').MonstGirl | null>(null)
 
   const handleReset = () => {
     if (!confirmReset) {
@@ -72,6 +74,8 @@ export default function GamePage() {
             onSaveChange={handleSaveChange}
             onNavigate={setActiveTab}
             onOpenSettings={() => setSettingsOpen(true)}
+            newlyPurchasedGirl={newlyPurchasedGirl}
+            onNewGirlGreeted={() => setNewlyPurchasedGirl(null)}
           />
         )}
         {(activeTab === 'service' || activeTab === 'training') && (
@@ -88,7 +92,13 @@ export default function GamePage() {
           <MarketScreen
             save={save}
             settings={settings}
-            onSaveChange={handleSaveChange}
+            onSaveChange={(updated) => {
+              // Detect a newly added girl by comparing girl IDs
+              const prevIds = new Set(save.girls.map((g) => g.id))
+              const added = updated.girls.find((g) => !prevIds.has(g.id))
+              if (added) setNewlyPurchasedGirl(added)
+              handleSaveChange(updated)
+            }}
             onBack={() => setActiveTab('hub')}
           />
         )}
