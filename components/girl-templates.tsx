@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Check, ImageIcon } from 'lucide-react'
-import { GIRL_TEMPLATES, RACES } from '@/lib/game-data'
+import { GIRL_TEMPLATES, GIRL_TEMPLATE_IMAGES, RACES } from '@/lib/game-data'
 import { MonstGirl } from '@/lib/types'
 import { StatBar } from '@/components/stat-bar'
 import { Badge } from '@/components/ui/badge'
@@ -11,9 +11,6 @@ import { cn } from '@/lib/utils'
 interface GirlTemplatesProps {
   onSelect: (template: Omit<MonstGirl, 'id' | 'imageUrl'>) => void
 }
-
-// Default placeholder images per template index (will be replaced by preset images later)
-const TEMPLATE_PLACEHOLDERS: string[] = []
 
 export function GirlTemplates({ onSelect }: GirlTemplatesProps) {
   const [selected, setSelected] = useState<number | null>(null)
@@ -28,7 +25,7 @@ export function GirlTemplates({ onSelect }: GirlTemplatesProps) {
       {GIRL_TEMPLATES.map((tmpl, i) => {
         const race = RACES.find((r) => r.name === tmpl.race)
         const isSelected = selected === i
-        const placeholder = TEMPLATE_PLACEHOLDERS[i]
+        const presetImage = GIRL_TEMPLATE_IMAGES[i] ?? null
         return (
           <button
             key={i}
@@ -42,9 +39,9 @@ export function GirlTemplates({ onSelect }: GirlTemplatesProps) {
           >
             {/* Portrait area */}
             <div className="w-full aspect-[3/4] bg-muted/20 relative">
-              {placeholder ? (
+              {presetImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={placeholder} alt={tmpl.name} className="w-full h-full object-cover" />
+                <img src={presetImage} alt={tmpl.name} className="w-full h-full object-cover object-top" />
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 bg-gradient-to-b from-muted/10 to-muted/30">
                   <ImageIcon className="w-6 h-6 text-muted-foreground/20" />

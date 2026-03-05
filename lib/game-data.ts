@@ -54,6 +54,17 @@ export const SERVING_SKILLS = [
 
 // ─── 初始魔物娘模板 ────────────────────────────────────────────────────────────
 
+// Preset image URLs (index matches GIRL_TEMPLATES order)
+export const GIRL_TEMPLATE_IMAGES: (string | null)[] = [
+  null,       // 千雪
+  null,       // 绯月
+  null,       // 蓝儿
+  null,       // 艾希
+  null,       // 维拉
+  null,       // 艾拉
+  '/presets/wenxiang.jpg', // 文香
+]
+
 export const GIRL_TEMPLATES: Omit<MonstGirl, 'id' | 'imageUrl'>[] = [
   {
     name: '千雪',
@@ -169,9 +180,29 @@ export const GIRL_TEMPLATES: Omit<MonstGirl, 'id' | 'imageUrl'>[] = [
     imageTags: '1girl, elf, blonde hair, long hair, pointed ears, green eyes, white dress, flower ornament, shy, pure, anime, masterpiece, best quality',
     price: 0,
   },
+  {
+    name: '文香',
+    race: '阿拉克涅',
+    age: '23',
+    bodyDesc: '黑发长发，蓝色大眼，圆形眼镜，上身丰满，下身为黑色蜘蛛体，皮肤白皙',
+    bodyTags: 'arachne, black hair, long hair, blue eyes, glasses, round glasses, pale skin, huge breasts, spider lower body, eight legs',
+    personality: '极度害羞内向，书虫气质，表面安静被动，内心对被束缚与支配有隐秘渴望',
+    personalityTags: 'shy, introverted, bookworm, quiet, secretly desires bondage and submission',
+    outfit: '破损的图书馆员长袍 + 蛛丝缠身',
+    outfitTags: 'torn clothes, librarian outfit, black ribbon, choker, spider web silk, translucent silk drapery, detached sleeves, damaged dress',
+    otherDesc: '原本是沉迷书籍的图书馆守护灵，在接触禁忌古籍后与阿拉克涅诅咒融合，变成半人半蛛的魔物娘',
+    otherTags: 'library guardian spirit, cursed, forbidden knowledge, ancient library',
+    affection: 18,
+    obedience: 12,
+    lewdness: 25,
+    skills: [],
+    imageTags: '1girl, solo, arachne, monster girl, spider girl, spider legs, multiple legs, drider, black hair, long hair, bangs, sidelocks, glasses, round glasses, blue eyes, pale skin, shy, embarrassed, blushing, huge breasts, cleavage, librarian, holding book, cobweb, spider web background, silk, torn clothes, masterpiece, best quality, highly detailed, anime',
+    bust: 95,
+    waist: 58,
+    hip: 88,
+    price: 0,
+  },
 ]
-
-// ─── 客人种族 ──────────────────────────────────────────────────────────────────
 
 export const GUEST_RACES = [
   '人类冒险家', '矮人战士', '兽人武者', '精灵游侠',
