@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getGameSave, saveGameSave, getSettings } from '@/lib/storage'
 import { GameSave, AppSettings } from '@/lib/types'
-import { DailyHub } from '@/components/daily-hub'
+import { MarketScreen } from '@/components/market-screen'
 
-export default function GamePage() {
+export default function MarketPage() {
   const router = useRouter()
   const [save, setSave] = useState<GameSave | null>(null)
   const [settings, setSettings] = useState<AppSettings | null>(null)
@@ -14,10 +14,7 @@ export default function GamePage() {
 
   useEffect(() => {
     const s = getGameSave()
-    if (!s) {
-      router.replace('/setup')
-      return
-    }
+    if (!s) { router.replace('/setup'); return }
     setSave(s)
     setSettings(getSettings())
     setLoaded(true)
@@ -36,6 +33,5 @@ export default function GamePage() {
     )
   }
 
-  return <DailyHub save={save} settings={settings} onSaveChange={handleSaveChange} />
+  return <MarketScreen save={save} settings={settings} onSaveChange={handleSaveChange} />
 }
-

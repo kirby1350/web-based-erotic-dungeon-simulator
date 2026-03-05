@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Users, CheckCircle, RefreshCw, Loader2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle, RefreshCw, Loader2, Send } from 'lucide-react'
 import {
   GameSave,
   MonstGirl,
@@ -68,6 +68,7 @@ export function ServiceScreen({ save, type, settings, onSaveChange }: ServiceScr
   const [session, setSession] = useState<ServiceSession | null>(null)
   const [lastAiMsg, setLastAiMsg] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [goldEarned, setGoldEarned] = useState(0)
 
   const chatRef = useRef<ChatEngineHandle>(null)
   const eligibleTrainers = findEligibleTrainers(girls)
@@ -222,10 +223,10 @@ export function ServiceScreen({ save, type, settings, onSaveChange }: ServiceScr
     if (!session) return
 
     let updatedGirls = [...girls]
-    let goldEarned = 0
+    let earned = 0
 
     if (session.type === 'service' && session.guest) {
-      goldEarned = calcServiceReward(session.guest, session)
+      earned = calcServiceReward(session.guest, session)
     }
 
     const turnCount = messages.filter((m) => m.role === 'user').length
@@ -236,12 +237,13 @@ export function ServiceScreen({ save, type, settings, onSaveChange }: ServiceScr
       )
     }
 
+    setGoldEarned(earned)
     const updatedSave: GameSave = {
       ...save,
       girls: updatedGirls,
       player: {
         ...player,
-        gold: player.gold + goldEarned,
+        gold: player.gold + earned,
         day: save.currentDay,
       },
     }
@@ -343,7 +345,7 @@ export function ServiceScreen({ save, type, settings, onSaveChange }: ServiceScr
               disabled={selectedGirls.length === 0}
               onClick={handleConfirmGirls}
             >
-              {type === 'service' ? '生成今日客人' : '开始调教'}
+              {type === 'service' ? '生成��日客人' : '开始调教'}
             </Button>
           </div>
         </div>
@@ -511,47 +513,9 @@ export function ServiceScreen({ save, type, settings, onSaveChange }: ServiceScr
               settings={settings}
               onSelect={(text) => chatRef.current?.sendMessage(text)}
             />
-            {/* Input area */}
-            <div className="border-t border-border">
-              <ChatEngine
-                ref={chatRef}
-                systemPrompt=""
-                messages={[]}
-                onMessagesChange={() => {}}
-                settings={settings}
-                showInput={true}
-                className="h-0 overflow-hidden"
-              />
-            </div>
-            {/* Standalone input that routes to main chat */}
+            {/* Standalone input */}
             <div className="border-t border-border px-3 pb-3 pt-2 flex gap-2 items-end">
-              <textarea
-                className="flex-1 min-h-[56px] max-h-[100px] resize-none bg-input border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                placeholder="描述你的行动…（Enter 发送，Shift+Enter 换行）"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    const val = e.currentTarget.value.trim()
-                    if (val) {
-                      chatRef.current?.sendMessage(val)
-                      e.currentTarget.value = ''
-                    }
-                  }
-                }}
-              />
-              <Button
-                size="icon"
-                className="h-9 w-9 shrink-0 glow-btn"
-                onClick={() => {
-                  const ta = document.querySelector('textarea') as HTMLTextAreaElement | null
-                  if (ta && ta.value.trim()) {
-                    chatRef.current?.sendMessage(ta.value.trim())
-                    ta.value = ''
-                  }
-                }}
-              >
-                <Users className="w-3.5 h-3.5" />
-              </Button>
+              <InputArea onSend={(val) => chatRef.current?.sendMessage(val)} />
             </div>
           </div>
         </div>
@@ -568,13 +532,21 @@ export function ServiceScreen({ save, type, settings, onSaveChange }: ServiceScr
           </div>
 
           <div className="bg-card border border-border rounded-xl p-5 w-full max-w-sm space-y-3">
-            {type === 'service' && session.guest && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">客人满意度</span>
-                <span className="text-sm font-semibold text-amber-400">
-                  {session.guest.satisfaction} / 100
-                </span>
-              </div>
+            {type === 'service' && (
+              <>
+                {session.guest && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">客人满意度</span>
+                    <span className="text-sm font-semibold text-amber-400">
+                      {session.guest.satisfaction} / 100
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">本次收入</span>
+                  <span className="text-sm font-semibold gold-text">+{goldEarned} G</span>
+                </div>
+              </>
             )}
             <div className="h-px bg-border" />
             <p className="text-xs text-muted-foreground text-center">
@@ -588,5 +560,35 @@ export function ServiceScreen({ save, type, settings, onSaveChange }: ServiceScr
         </div>
       )}
     </div>
+  )
+}
+
+// ─── Standalone input component ──────────────────────────────────────────────
+
+function InputArea({ onSend }: { onSend: (text: string) => void }) {
+  const [value, setValue] = useState('')
+  return (
+    <>
+      <textarea
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        className="flex-1 min-h-[56px] max-h-[100px] resize-none bg-input border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+        placeholder="描述你的行动…（Enter 发送，Shift+Enter 换行）"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault()
+            if (value.trim()) { onSend(value.trim()); setValue('') }
+          }
+        }}
+      />
+      <Button
+        size="icon"
+        className="h-9 w-9 shrink-0 glow-btn"
+        disabled={!value.trim()}
+        onClick={() => { if (value.trim()) { onSend(value.trim()); setValue('') } }}
+      >
+        <Send className="w-3.5 h-3.5" />
+      </Button>
+    </>
   )
 }

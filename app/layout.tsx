@@ -16,8 +16,8 @@ const _notoSerifSC = Noto_Serif_SC({
 })
 
 export const metadata: Metadata = {
-  title: 'API 配置中心',
-  description: '管理文字模型与图片生成模型的 API 密钥和预设参数',
+  title: '魔物娘娼馆',
+  description: '基于 AI 的魔物娘娼馆经营模拟器',
 }
 
 export default function RootLayout({

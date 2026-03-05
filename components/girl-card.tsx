@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, Star, Shield, Flame, Wand2 } from 'lucide-react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { MonstGirl } from '@/lib/types'
 import { StatBar } from '@/components/stat-bar'
 import { ImageDisplay } from '@/components/image-display'
