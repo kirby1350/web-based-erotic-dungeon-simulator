@@ -1,11 +1,15 @@
-import type { MonstGirl, Player, ServiceSession, Guest } from '@/lib/types'
+import { Player, MonstGirl, Guest, ServiceSession, GameSave } from '@/lib/types'
 
-// Helper: format BWH string if all three values exist
 function girlBWH(g: MonstGirl): string {
-  if (g.bust && g.waist && g.hip) return `B${g.bust} W${g.waist} H${g.hip}`
-  return ''
+  if (!g.bust && !g.waist && !g.hip) return ''
+  return `B${g.bust ?? '?'} W${g.waist ?? '?'} H${g.hip ?? '?'}`
 }
 
+function playerTraitsFull(player: Player): string {
+  const all = [...player.traits]
+  if (player.customTraits?.trim()) all.push(player.customTraits.trim())
+  return all.join('、') || '无'
+}
 // ─── 系统提示词：服务/调教场景 ─────────────────────────────────────────────────
 
 export function buildServiceSystemPrompt(
