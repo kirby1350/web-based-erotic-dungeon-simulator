@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Settings, Coins, Calendar, Store, Sword, ShoppingBag, Heart, Users, X, Send, Loader2 } from 'lucide-react'
 import { GameSave, MonstGirl, AppSettings } from '@/lib/types'
-import { GirlCard } from '@/components/girl-card'
+import { ImageDisplay } from '@/components/image-display'
 import { InteractionPanel } from '@/components/interaction-panel'
 import { StatBar } from '@/components/stat-bar'
 import { Button } from '@/components/ui/button'
@@ -212,8 +212,16 @@ export function DailyHub({ save, settings, onSaveChange, onNavigate, onOpenSetti
               ) : (
                 girls.map((girl) => (
                   <div key={girl.id} className="bg-background rounded-xl border border-border p-3 flex gap-3">
-                    <div className="w-14 shrink-0">
-                      <GirlCard girl={girl} settings={settings} onImageCached={handleImageCached} compact className="w-full" />
+                    {/* Left: character image */}
+                    <div className="w-16 shrink-0 rounded-lg overflow-hidden self-stretch">
+                      <ImageDisplay
+                        tags={girl.imageTags}
+                        settings={settings}
+                        cachedUrl={girl.imageUrl}
+                        onUrlCached={(url) => handleImageCached(girl.id, url)}
+                        alt={girl.name}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                     <div className="flex-1 min-w-0 space-y-1.5">
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -221,7 +229,7 @@ export function DailyHub({ save, settings, onSaveChange, onNavigate, onOpenSetti
                         <Badge variant="secondary" className="text-[8px] h-3.5 px-1">{girl.race}</Badge>
                       </div>
                       {(girl.bust || girl.waist || girl.hip) && (
-                        <p className="text-[9px] text-muted-foreground/60 font-mono">
+                        <p className="text-xs text-muted-foreground/80 font-mono tracking-wide">
                           B{girl.bust} W{girl.waist} H{girl.hip}
                         </p>
                       )}
