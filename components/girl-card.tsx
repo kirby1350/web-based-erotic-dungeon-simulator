@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown, ChevronUp, ImageIcon } from 'lucide-react'
 import { MonstGirl } from '@/lib/types'
 import { StatBar } from '@/components/stat-bar'
 import { ImageDisplay } from '@/components/image-display'
@@ -29,6 +29,7 @@ export function GirlCard({
   className,
 }: GirlCardProps) {
   const [expanded, setExpanded] = useState(false)
+  const [showImage, setShowImage] = useState(false)
 
   return (
     <div
@@ -42,8 +43,8 @@ export function GirlCard({
       )}
       onClick={() => onSelect?.(girl)}
     >
-      {/* Image section */}
-      {!compact && (
+      {/* Image section — always shown in non-compact; in compact shown if hasApiKey and toggled */}
+      {!compact ? (
         <div className="relative">
           <ImageDisplay
             tags={girl.imageTags}
@@ -59,7 +60,19 @@ export function GirlCard({
             </div>
           )}
         </div>
-      )}
+      ) : showImage ? (
+        <div className="relative">
+          <ImageDisplay
+            tags={girl.imageTags}
+            settings={settings}
+            cachedUrl={girl.imageUrl}
+            onUrlCached={(url) => onImageCached?.(girl.id, url)}
+            alt={girl.name}
+            autoGenerate={!girl.imageUrl}
+            className="w-full aspect-[3/4] rounded-none"
+          />
+        </div>
+      ) : null}
 
       {/* Info section */}
       <div className="p-3 space-y-2.5">
@@ -75,19 +88,21 @@ export function GirlCard({
             </div>
           </div>
           {compact && (
-            <button
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              onClick={(e) => {
-                e.stopPropagation()
-                setExpanded(!expanded)
-              }}
-            >
-              {expanded ? (
-                <ChevronUp className="w-3.5 h-3.5" />
-              ) : (
-                <ChevronDown className="w-3.5 h-3.5" />
-              )}
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                className="text-muted-foreground hover:text-primary transition-colors"
+                onClick={(e) => { e.stopPropagation(); setShowImage((v) => !v) }}
+                title={showImage ? '隐藏图片' : '显示/生成图片'}
+              >
+                <ImageIcon className="w-3.5 h-3.5" />
+              </button>
+              <button
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                onClick={(e) => { e.stopPropagation(); setExpanded(!expanded) }}
+              >
+                {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+            </div>
           )}
         </div>
 

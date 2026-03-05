@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { ArrowLeft, RefreshCw, Loader2, Coins, ShoppingCart, Filter, Send } from 'lucide-react'
+import { ArrowLeft, RefreshCw, Loader2, Coins, ShoppingCart, Filter, Send, Settings2, X } from 'lucide-react'
 import { GameSave, MonstGirl, AppSettings } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -33,6 +33,9 @@ export function MarketScreen({ save, settings, onSaveChange, onBack }: MarketScr
   const [chatMessages, setChatMessages] = useState<{ role: 'girl' | 'player'; text: string }[]>([])
   const [chatInput, setChatInput] = useState('')
   const [marketBanner, setMarketBanner] = useState('')
+  // Per-listing image key (bump to force ImageDisplay remount + autoGenerate) and editable tags
+  const [imageKeys, setImageKeys] = useState<Record<string, number>>({})
+  const [editingTags, setEditingTags] = useState<{ id: string; tags: string } | null>(null)
 
   // Market arrival opening
   useEffect(() => {
@@ -50,6 +53,19 @@ export function MarketScreen({ save, settings, onSaveChange, onBack }: MarketScr
   }, [])
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
+
+  const openTagsEditor = (girl: MonstGirl) => {
+    setEditingTags({ id: girl.id, tags: girl.imageTags })
+  }
+
+  const applyTagsAndRegenerate = () => {
+    if (!editingTags) return
+    // Save edited tags back into the listing
+    setListings((prev) => prev.map((g) => g.id === editingTags.id ? { ...g, imageTags: editingTags.tags } : g))
+    // Bump the key to force ImageDisplay remount with autoGenerate
+    setImageKeys((prev) => ({ ...prev, [editingTags.id]: (prev[editingTags.id] ?? 0) + 1 }))
+    setEditingTags(null)
+  }
 
   const apiCall = async (prompt: string) => {
     const apiKey = settings.chatModel.startsWith('grok') ? settings.grokApiKey : settings.chatApiKey
@@ -176,7 +192,7 @@ export function MarketScreen({ save, settings, onSaveChange, onBack }: MarketScr
     }
   }
 
-  // ─── Post-purchase chat ──────────────────────────────────────────────────────
+  // ─── Post-purchase chat ───────────────────────────────────────��──────────────
 
   const sendChat = async () => {
     if (!chatInput.trim() || !purchasedGirl) return
@@ -271,7 +287,7 @@ export function MarketScreen({ save, settings, onSaveChange, onBack }: MarketScr
   }
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-full bg-background relative">
       <header className="border-b border-border px-4 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" className="w-7 h-7" onClick={onBack}><ArrowLeft className="w-4 h-4" /></Button>
@@ -321,15 +337,25 @@ export function MarketScreen({ save, settings, onSaveChange, onBack }: MarketScr
               const canAfford = player.gold >= (girl.price ?? 200)
               return (
                 <div key={girl.id} className={cn('bg-card border border-border rounded-xl overflow-hidden transition-all duration-200', canAfford && 'hover:border-primary/40')}>
-                  <div className="aspect-[3/4]">
+                  <div className="aspect-[3/4] relative group">
                     <ImageDisplay
+                      key={imageKeys[girl.id] ?? 0}
                       tags={girl.imageTags}
                       settings={settings}
-                      cachedUrl={girl.imageUrl}
+                      cachedUrl={imageKeys[girl.id] ? undefined : girl.imageUrl}
                       onUrlCached={(url) => setListings((prev) => prev.map((g) => g.id === girl.id ? { ...g, imageUrl: url } : g))}
                       alt={girl.name}
-                      className="w-full h-full"
+                      autoGenerate={!!(imageKeys[girl.id])}
+                      className="w-full h-full rounded-none"
                     />
+                    {/* Settings button overlay */}
+                    <button
+                      className="absolute bottom-2 right-2 w-7 h-7 rounded-md bg-black/60 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
+                      onClick={(e) => { e.stopPropagation(); openTagsEditor(girl) }}
+                      title="设置生图 TAG"
+                    >
+                      <Settings2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                   <div className="p-3 space-y-2">
                     <div className="flex items-start justify-between gap-2">
@@ -368,6 +394,29 @@ export function MarketScreen({ save, settings, onSaveChange, onBack }: MarketScr
           </div>
         )}
       </div>
+
+      {/* TAG Editor Modal */}
+      {editingTags && (
+        <div className="absolute inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setEditingTags(null)}>
+          <div className="bg-card border border-border rounded-xl w-full max-w-sm p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold gold-text">生图 TAG 设置</h3>
+              <Button variant="ghost" size="icon" className="w-7 h-7" onClick={() => setEditingTags(null)}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <textarea
+              value={editingTags.tags}
+              onChange={(e) => setEditingTags({ ...editingTags, tags: e.target.value })}
+              className="w-full min-h-[90px] resize-none bg-input border border-border rounded-md px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+              placeholder="1girl, anime, masterpiece, best quality, ..."
+            />
+            <Button className="w-full h-9 text-xs glow-btn" onClick={applyTagsAndRegenerate}>
+              保存并重新生图
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
