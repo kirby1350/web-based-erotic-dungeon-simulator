@@ -34,12 +34,8 @@ export function DailyHub({ save, settings, onSaveChange, onNavigate, onOpenSetti
     if (openedRef.current) return
     openedRef.current = true
     const fallback = `欢迎回来，${player.name}。今天是第 ${save.currentDay} 天，你的娼馆已经开门了。`
-    const apiKey = settings.chatModel.startsWith('grok') ? settings.grokApiKey : settings.chatApiKey
-    if (!apiKey) {
-      setChatMessages([{ role: 'system', text: fallback }])
-      return
-    }
     setChatLoading(true)
+    const apiKey = settings.chatModel.startsWith('grok') ? settings.grokApiKey : settings.chatApiKey
     const prompt = buildOpeningDialoguePrompt('game-start', player, girls)
     fetch('/api/chat', {
       method: 'POST',

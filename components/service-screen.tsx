@@ -110,7 +110,6 @@ export function ServiceScreen({ save, type, settings, onSaveChange, onBack }: Se
       const pref = getGuestPreference()
       const prompt = buildGuestGenerationPrompt(pref, [])
       const apiKey = settings.chatModel.startsWith('grok') ? settings.grokApiKey : settings.chatApiKey
-      if (!apiKey) { setGuest(makeRandomGuest()); return }
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
