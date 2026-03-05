@@ -136,13 +136,41 @@ export function MarketScreen({ save, settings, onSaveChange, onBack }: MarketScr
     setPurchasedGirl(girl)
     setStep('purchase-dialogue')
     setOpeningLoading(true)
-    setChatMessages([])
+    setChatMessages([{ role: 'girl', text: '' }]) // placeholder for streaming
+    
+    const apiKey = settings.chatModel.startsWith('grok') ? settings.grokApiKey : settings.chatApiKey
+    const fallback = `……（${girl.name} 看了看四周，保持沉默）`
     try {
       const prompt = buildOpeningDialoguePrompt('purchase', player, [girl], { girl })
-      const text = await apiCall(prompt)
-      setChatMessages([{ role: 'girl', text: text.trim() }])
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], model: settings.chatModel, apiKey, stream: true }),
+      })
+      if (!res.ok || !res.body) throw new Error('API error')
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let full = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        const chunk = decoder.decode(value, { stream: true })
+        for (const line of chunk.split('\n')) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6)
+            if (data === '[DONE]') continue
+            try {
+              const parsed = JSON.parse(data)
+              const delta = parsed.choices?.[0]?.delta?.content ?? ''
+              full += delta
+              setChatMessages([{ role: 'girl', text: full }])
+            } catch { /* skip */ }
+          }
+        }
+      }
+      if (!full.trim()) setChatMessages([{ role: 'girl', text: fallback }])
     } catch {
-      setChatMessages([{ role: 'girl', text: `……（${girl.name} 看了看四周，保持沉默）` }])
+      setChatMessages([{ role: 'girl', text: fallback }])
     } finally {
       setOpeningLoading(false)
     }
@@ -309,7 +337,7 @@ export function MarketScreen({ save, settings, onSaveChange, onBack }: MarketScr
                       disabled={!canAfford || purchasing === girl.id}
                       onClick={() => handlePurchase(girl)}
                     >
-                      {!canAfford ? `金币不足（需 ${girl.price} G）` : purchasing === girl.id ? '购入中…' : `购入（${girl.price} G）`}
+                      {!canAfford ? `金币不足（需 ${girl.price} G）` : purchasing === girl.id ? '购入���…' : `购入（${girl.price} G）`}
                     </Button>
                   </div>
                 </div>

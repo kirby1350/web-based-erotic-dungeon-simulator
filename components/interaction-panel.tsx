@@ -40,8 +40,8 @@ export function InteractionPanel({ girl, player, settings, onClose, onGirlUpdate
   const [giftFeedback, setGiftFeedback] = useState('')
   const [imageUrl, setImageUrl] = useState(girl.imageUrl)
 
-  // Called when user clicks "开始互动" — sends the opening greeting
-  const handleStart = () => {
+  // Called when user clicks "开始互动" — sends the opening greeting with streaming
+  const handleStart = async () => {
     setStarted(true)
     const apiKey = settings.chatModel.startsWith('grok') ? settings.grokApiKey : settings.chatApiKey
     const fallback = `……（${girl.name} 看了看你，${girl.affection >= 50 ? '露出了微笑' : '保持着沉默'}）`
@@ -50,19 +50,41 @@ export function InteractionPanel({ girl, player, settings, onClose, onGirlUpdate
       return
     }
     setOpeningLoading(true)
+    setMessages([{ role: 'assistant', content: '' }]) // placeholder for streaming
     const prompt = buildOpeningDialoguePrompt('interaction', player, [girl], { girl })
-    fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], model: settings.chatModel, apiKey, stream: false }),
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        const text = (data.content ?? data.text ?? '').trim()
-        setMessages([{ role: 'assistant', content: text || fallback }])
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], model: settings.chatModel, apiKey, stream: true }),
       })
-      .catch(() => setMessages([{ role: 'assistant', content: fallback }]))
-      .finally(() => setOpeningLoading(false))
+      if (!res.ok || !res.body) throw new Error('API error')
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let full = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        const chunk = decoder.decode(value, { stream: true })
+        for (const line of chunk.split('\n')) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6)
+            if (data === '[DONE]') continue
+            try {
+              const parsed = JSON.parse(data)
+              const delta = parsed.choices?.[0]?.delta?.content ?? ''
+              full += delta
+              setMessages([{ role: 'assistant', content: full }])
+            } catch { /* skip */ }
+          }
+        }
+      }
+      if (!full.trim()) setMessages([{ role: 'assistant', content: fallback }])
+    } catch {
+      setMessages([{ role: 'assistant', content: fallback }])
+    } finally {
+      setOpeningLoading(false)
+    }
   }
 
   const systemPrompt = buildInteractionSystemPrompt(player, girl, mode)
