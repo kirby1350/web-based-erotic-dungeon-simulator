@@ -146,6 +146,31 @@ export function GirlCreator({ settings, onComplete }: GirlCreatorProps) {
             </div>
           </div>
 
+          {/* BWH */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">三围（cm）</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { label: 'B 胸围', key: 'bust' as const },
+                { label: 'W 腰围', key: 'waist' as const },
+                { label: 'H 臀围', key: 'hip' as const },
+              ] as { label: string; key: 'bust' | 'waist' | 'hip' }[]).map(({ label, key }) => (
+                <div key={key} className="space-y-1">
+                  <span className="text-[10px] text-muted-foreground">{label}</span>
+                  <Input
+                    type="number"
+                    min={40}
+                    max={130}
+                    value={draft[key] ?? ''}
+                    onChange={(e) => updateDraft({ [key]: Number(e.target.value) })}
+                    className="bg-input h-8 text-sm text-center"
+                    placeholder="—"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">身材外貌</Label>
             <Textarea

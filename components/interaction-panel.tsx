@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Gift, Shirt, MessageCircle, X } from 'lucide-react'
 import { MonstGirl, Player, ChatMessage, AppSettings } from '@/lib/types'
 import { Button } from '@/components/ui/button'
@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { StatBar } from '@/components/stat-bar'
 import { ImageDisplay } from '@/components/image-display'
 import { ChatEngine } from '@/components/chat-engine'
-import { buildInteractionSystemPrompt } from '@/lib/prompt-builder'
+import { buildInteractionSystemPrompt, buildOpeningDialoguePrompt } from '@/lib/prompt-builder'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
@@ -42,6 +42,24 @@ export function InteractionPanel({
   const [newOutfitTags, setNewOutfitTags] = useState(girl.outfitTags)
   const [giftFeedback, setGiftFeedback] = useState('')
   const [imageUrl, setImageUrl] = useState(girl.imageUrl)
+
+  // Auto-generate opening greeting
+  useEffect(() => {
+    const apiKey = settings.chatModel.startsWith('grok') ? settings.grokApiKey : settings.chatApiKey
+    if (!apiKey) return
+    const prompt = buildOpeningDialoguePrompt('interaction', player, [girl], { girl })
+    fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], model: settings.chatModel, apiKey, stream: false }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const text = (data.content ?? data.text ?? '').trim()
+        if (text) setMessages([{ role: 'assistant', content: text }])
+      })
+      .catch(() => {})
+  }, [])
 
   const systemPrompt = buildInteractionSystemPrompt(player, girl, mode)
 

@@ -17,6 +17,7 @@ interface PlayerSetupProps {
 export function PlayerSetup({ onComplete }: PlayerSetupProps) {
   const [name, setName] = useState('')
   const [traits, setTraits] = useState<string[]>([])
+  const [customTraits, setCustomTraits] = useState('')
   const [fetishes, setFetishes] = useState<string[]>([])
   const [guestPref, setGuestPref] = useState('')
 
@@ -33,6 +34,7 @@ export function PlayerSetup({ onComplete }: PlayerSetupProps) {
     onComplete({
       name: name.trim(),
       traits,
+      customTraits: customTraits.trim(),
       fetishes,
       gold: 500,
       day: 1,
@@ -80,6 +82,21 @@ export function PlayerSetup({ onComplete }: PlayerSetupProps) {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* 自定义特性 */}
+      <div className="space-y-2">
+        <Label htmlFor="custom-traits" className="text-xs text-muted-foreground">
+          自定义特性（可选）
+        </Label>
+        <Input
+          id="custom-traits"
+          value={customTraits}
+          onChange={(e) => setCustomTraits(e.target.value)}
+          placeholder="例如：天生魅力、擅长绑缚、眼神犀利……"
+          className="bg-input h-9 text-sm"
+          maxLength={80}
+        />
       </div>
 
       {/* 癖好 */}

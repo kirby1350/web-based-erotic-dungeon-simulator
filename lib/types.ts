@@ -124,6 +124,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 export interface Player {
   name: string
   traits: string[]
+  customTraits: string
   fetishes: string[]
   gold: number
   day: number
@@ -138,6 +139,9 @@ export interface MonstGirl {
   age: string
   bodyDesc: string
   bodyTags: string
+  bust: number
+  waist: number
+  hip: number
   personality: string
   personalityTags: string
   outfit: string

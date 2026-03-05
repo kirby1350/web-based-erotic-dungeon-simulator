@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, CheckCircle, RefreshCw, Loader2, Send } from 'lucide-react'
+import { ArrowLeft, CheckCircle, RefreshCw, Loader2, Send, ChevronRight } from 'lucide-react'
 import {
   GameSave,
   MonstGirl,
@@ -21,6 +21,7 @@ import { SuggestionBar } from '@/components/suggestion-bar'
 import {
   buildServiceSystemPrompt,
   buildGuestGenerationPrompt,
+  buildOpeningDialoguePrompt,
 } from '@/lib/prompt-builder'
 import {
   createServiceSession,
@@ -42,9 +43,10 @@ import {
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 type ServiceStep =
-  | 'pick-type'       // service: pick girls; training: pick girls + trainer
-  | 'pick-guest'      // service only: show guest, option to reroll
-  | 'active'          // main session
+  | 'pick-type'
+  | 'pick-guest'
+  | 'opening'   // opening dialogue before session starts
+  | 'active'
   | 'result'
 
 interface ServiceScreenProps {
@@ -69,6 +71,8 @@ export function ServiceScreen({ save, type, settings, onSaveChange }: ServiceScr
   const [lastAiMsg, setLastAiMsg] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [goldEarned, setGoldEarned] = useState(0)
+  const [openingText, setOpeningText] = useState('')
+  const [openingLoading, setOpeningLoading] = useState(false)
 
   const chatRef = useRef<ChatEngineHandle>(null)
   const eligibleTrainers = findEligibleTrainers(girls)
@@ -158,7 +162,7 @@ export function ServiceScreen({ save, type, settings, onSaveChange }: ServiceScr
 
   // ─── Step: pick-guest → start session ─────────────────────────────────────
 
-  const startSession = () => {
+  const startSession = async () => {
     const sessionGirls = girls.filter((g) => selectedGirls.includes(g.id))
     const trainer =
       type === 'training' && selectedTrainerId
@@ -170,7 +174,29 @@ export function ServiceScreen({ save, type, settings, onSaveChange }: ServiceScr
       trainer: type === 'training' ? trainer : undefined,
     })
     setSession(newSession)
-    setStep('active')
+    setStep('opening')
+    setOpeningLoading(true)
+
+    try {
+      const sceneType = type === 'service' ? 'service' : 'training'
+      const prompt = buildOpeningDialoguePrompt(sceneType, player, sessionGirls, { guest: guest ?? undefined })
+      const apiKey = settings.chatModel.startsWith('grok') ? settings.grokApiKey : settings.chatApiKey
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], model: settings.chatModel, apiKey, stream: false }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setOpeningText((data.content ?? data.text ?? '').trim())
+      } else {
+        setOpeningText(type === 'service' ? '客人踏入了包间……' : '调教室的门缓缓关上……')
+      }
+    } catch {
+      setOpeningText(type === 'service' ? '客人踏入了包间……' : '调教室的门缓缓关上……')
+    } finally {
+      setOpeningLoading(false)
+    }
   }
 
   // ─── Session: stat updates on AI reply ────────────────────────────────────
@@ -278,6 +304,7 @@ export function ServiceScreen({ save, type, settings, onSaveChange }: ServiceScr
         <Badge variant="secondary" className="text-[10px] h-5 px-2">
           {step === 'pick-type' && '选择魔物娘'}
           {step === 'pick-guest' && (type === 'service' ? '确认客人' : '选择调教者')}
+          {step === 'opening' && '开场'}
           {step === 'active' && '进行中'}
           {step === 'result' && '结束'}
         </Badge>
@@ -406,6 +433,35 @@ export function ServiceScreen({ save, type, settings, onSaveChange }: ServiceScr
               </Button>
             </>
           )}
+        </div>
+      )}
+
+      {/* ── Step: opening ── */}
+      {step === 'opening' && (
+        <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center gap-6 max-w-lg mx-auto w-full">
+          <div className="text-center space-y-1">
+            <h2 className="text-base font-bold gold-text">
+              {type === 'service' ? '迎接客人' : '进入调教室'}
+            </h2>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-5 w-full min-h-[80px] flex items-center justify-center">
+            {openingLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>描述场景中…</span>
+              </div>
+            ) : (
+              <p className="text-sm leading-relaxed text-foreground/90 text-center">{openingText}</p>
+            )}
+          </div>
+          <Button
+            className="h-10 px-8 glow-btn gap-2"
+            disabled={openingLoading}
+            onClick={() => setStep('active')}
+          >
+            继续
+            <ChevronRight className="w-4 h-4" />
+          </Button>
         </div>
       )}
 
