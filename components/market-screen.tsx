@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { ArrowLeft, RefreshCw, Loader2, Coins, ShoppingCart, Filter, Send } from 'lucide-react'
+import { ArrowLeft, RefreshCw, Loader2, Coins, ShoppingCart, Filter, Send, Image, Settings2, X } from 'lucide-react'
 import { GameSave, MonstGirl, AppSettings } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { StatBar } from '@/components/stat-bar'
 import { ImageDisplay } from '@/components/image-display'
 import { buildMarketGirlPrompt, buildOpeningDialoguePrompt } from '@/lib/prompt-builder'
@@ -33,6 +34,11 @@ export function MarketScreen({ save, settings, onSaveChange, onBack }: MarketScr
   const [chatMessages, setChatMessages] = useState<{ role: 'girl' | 'player'; text: string }[]>([])
   const [chatInput, setChatInput] = useState('')
   const [marketBanner, setMarketBanner] = useState('')
+  
+  // Image generation state per girl
+  const [imageUrls, setImageUrls] = useState<Record<string, string>>({})
+  const [imageLoading, setImageLoading] = useState<Record<string, boolean>>({})
+  const [editingTags, setEditingTags] = useState<{ id: string; tags: string } | null>(null)
 
   // Market arrival opening
   useEffect(() => {
@@ -61,6 +67,64 @@ export function MarketScreen({ save, settings, onSaveChange, onBack }: MarketScr
     if (!res.ok) throw new Error('API error')
     const data = await res.json()
     return (data.content ?? data.text ?? '') as string
+  }
+
+  // ─── Generate image for a girl ───────────────────────────────────────────────
+
+  const generateImage = async (girlId: string, tags: string) => {
+    const apiKey = settings.imageApiKey
+    if (!apiKey) return
+    setImageLoading((prev) => ({ ...prev, [girlId]: true }))
+    try {
+      // Step 1: Create task
+      const createRes = await fetch('/api/image/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompts: tags, apiKey }),
+      })
+      if (!createRes.ok) throw new Error('Create task failed')
+      const createData = await createRes.json()
+      const taskId = createData.task?.id
+      if (!taskId) throw new Error('No task ID')
+
+      // Step 2: Poll for completion
+      let attempts = 0
+      while (attempts < 60) {
+        await new Promise((r) => setTimeout(r, 2000))
+        const pollRes = await fetch(`/api/image/task/${taskId}?apiKey=${apiKey}`)
+        if (!pollRes.ok) throw new Error('Poll failed')
+        const pollData = await pollRes.json()
+        const status = pollData.task?.status
+        if (status === 'completed') {
+          const url = pollData.task?.outputs?.[0]?.url
+          if (url) {
+            setImageUrls((prev) => ({ ...prev, [girlId]: url }))
+            setListings((prev) => prev.map((g) => g.id === girlId ? { ...g, imageTags: tags, imageUrl: url } : g))
+          }
+          break
+        } else if (status === 'failed') {
+          throw new Error('Task failed')
+        }
+        attempts++
+      }
+    } catch { /* ignore */ }
+    setImageLoading((prev) => ({ ...prev, [girlId]: false }))
+  }
+
+  const handleEditTags = (girl: MonstGirl) => {
+    setEditingTags({ id: girl.id, tags: girl.imageTags })
+  }
+
+  const handleSaveTags = () => {
+    if (!editingTags) return
+    setListings((prev) => prev.map((g) => g.id === editingTags.id ? { ...g, imageTags: editingTags.tags } : g))
+    setEditingTags(null)
+  }
+
+  const handleRegenerateWithTags = () => {
+    if (!editingTags) return
+    generateImage(editingTags.id, editingTags.tags)
+    setEditingTags(null)
   }
 
   // ─── Generate market listings ───────────────────────────────────────────────
@@ -176,7 +240,7 @@ export function MarketScreen({ save, settings, onSaveChange, onBack }: MarketScr
     }
   }
 
-  // ─── Post-purchase chat ──────────────────────────────────────────────────────
+  // ─── Post-purchase chat ────────────────────────────��─────────────────────────
 
   const sendChat = async () => {
     if (!chatInput.trim() || !purchasedGirl) return
@@ -306,8 +370,62 @@ export function MarketScreen({ save, settings, onSaveChange, onBack }: MarketScr
               const canAfford = player.gold >= (girl.price ?? 200)
               return (
                 <div key={girl.id} className={cn('bg-card border border-border rounded-xl overflow-hidden transition-all duration-200', canAfford && 'hover:border-primary/40')}>
-                  <div className="aspect-[3/4] relative bg-secondary/20">
-                    <ImageDisplay tags={girl.imageTags} settings={settings} alt={girl.name} className="w-full h-full" />
+                  <div className="aspect-[3/4] relative bg-secondary/20 group">
+                    {imageUrls[girl.id] ? (
+                      <img src={imageUrls[girl.id]} alt={girl.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-secondary/30">
+                        <span className="text-xs text-muted-foreground">点击生成图片</span>
+                      </div>
+                    )}
+                    {/* Overlay with buttons */}
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      {imageLoading[girl.id] ? (
+                        <Loader2 className="w-6 h-6 animate-spin text-white" />
+                      ) : (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="h-8 text-xs gap-1.5"
+                            onClick={(e) => { e.stopPropagation(); generateImage(girl.id, girl.imageTags) }}
+                          >
+                            <Image className="w-3.5 h-3.5" />生成
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 w-8 p-0"
+                            onClick={(e) => { e.stopPropagation(); handleEditTags(girl) }}
+                          >
+                            <Settings2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                    {/* Bottom-right corner buttons when image exists */}
+                    {imageUrls[girl.id] && !imageLoading[girl.id] && (
+                      <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          size="icon"
+                          variant="secondary"
+                          className="h-7 w-7"
+                          onClick={(e) => { e.stopPropagation(); generateImage(girl.id, girl.imageTags) }}
+                          title="重新生成"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="secondary"
+                          className="h-7 w-7"
+                          onClick={(e) => { e.stopPropagation(); handleEditTags(girl) }}
+                          title="设置"
+                        >
+                          <Settings2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                   <div className="p-3 space-y-2">
                     <div className="flex items-start justify-between gap-2">
@@ -345,6 +463,66 @@ export function MarketScreen({ save, settings, onSaveChange, onBack }: MarketScr
             })}
           </div>
         )}
+      </div>
+
+      {/* Tags Editor Modal */}
+      {editingTags && (
+        <TagsEditorModal
+          tags={editingTags.tags}
+          onChange={(tags) => setEditingTags({ ...editingTags, tags })}
+          onClose={() => setEditingTags(null)}
+          onSave={handleSaveTags}
+          onRegenerate={handleRegenerateWithTags}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── Tags Editor Modal ────────────────────────────────────────────────────────
+
+function TagsEditorModal({
+  tags,
+  onChange,
+  onClose,
+  onSave,
+  onRegenerate,
+}: {
+  tags: string
+  onChange: (tags: string) => void
+  onClose: () => void
+  onSave: () => void
+  onRegenerate: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-card border border-border rounded-xl w-full max-w-md p-4 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold gold-text">图片生成设置</h3>
+          <Button variant="ghost" size="icon" className="w-7 h-7" onClick={onClose}>
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+        <div className="space-y-2">
+          <Label className="text-xs text-muted-foreground">生图 TAG（英文，逗号分隔）</Label>
+          <textarea
+            value={tags}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full min-h-[100px] resize-none bg-input border border-border rounded-md px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+            placeholder="1girl, anime, masterpiece, best quality, ..."
+          />
+          <p className="text-[10px] text-muted-foreground">
+            修改 TAG 后点击「重新生成」可生成新图片
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" className="flex-1 h-9 text-xs" onClick={onSave}>
+            仅保存 TAG
+          </Button>
+          <Button className="flex-1 h-9 text-xs glow-btn" onClick={onRegenerate}>
+            重新生成图片
+          </Button>
+        </div>
       </div>
     </div>
   )

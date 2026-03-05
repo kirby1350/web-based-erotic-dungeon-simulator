@@ -68,6 +68,7 @@ export function ServiceScreen({ save, type, settings, onSaveChange, onBack }: Se
   const [goldEarned, setGoldEarned] = useState(0)
   const [openingText, setOpeningText] = useState('')
   const [openingLoading, setOpeningLoading] = useState(false)
+  const [inputValue, setInputValue] = useState('')
 
   // Guest preference panel
   const [prefOpen, setPrefOpen] = useState(false)
@@ -585,10 +586,14 @@ export function ServiceScreen({ save, type, settings, onSaveChange, onBack }: Se
               sessionType={type}
               playerTraits={player.traits}
               settings={settings}
-              onSelect={(text) => chatRef.current?.sendMessage(text)}
+              onSelect={(text) => setInputValue(text)}
             />
             <div className="border-t border-border px-3 pb-3 pt-2 flex gap-2 items-end">
-              <InputArea onSend={(val) => chatRef.current?.sendMessage(val)} />
+              <InputArea
+                value={inputValue}
+                onChange={setInputValue}
+                onSend={(val) => { chatRef.current?.sendMessage(val); setInputValue('') }}
+              />
             </div>
           </div>
         </div>
@@ -624,27 +629,32 @@ export function ServiceScreen({ save, type, settings, onSaveChange, onBack }: Se
   )
 }
 
-// ─── Standalone input ─────────────────────────────────────────────────────────
+// ─── Standalone input with external control ──────────────────────────────────
 
-function InputArea({ onSend }: { onSend: (text: string) => void }) {
-  const [value, setValue] = useState('')
+interface InputAreaProps {
+  onSend: (text: string) => void
+  value: string
+  onChange: (text: string) => void
+}
+
+function InputArea({ onSend, value, onChange }: InputAreaProps) {
   return (
     <>
       <textarea
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(e) => onChange(e.target.value)}
         className="flex-1 min-h-[56px] max-h-[100px] resize-none bg-input border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
         placeholder="描述你的行动…（Enter 发送，Shift+Enter 换行）"
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault()
-            if (value.trim()) { onSend(value.trim()); setValue('') }
+            if (value.trim()) { onSend(value.trim()); onChange('') }
           }
         }}
       />
       <Button size="icon" className="h-9 w-9 shrink-0 glow-btn"
         disabled={!value.trim()}
-        onClick={() => { if (value.trim()) { onSend(value.trim()); setValue('') } }}>
+        onClick={() => { if (value.trim()) { onSend(value.trim()); onChange('') } }}>
         <Send className="w-3.5 h-3.5" />
       </Button>
     </>
