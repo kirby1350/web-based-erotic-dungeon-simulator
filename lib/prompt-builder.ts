@@ -1,3 +1,11 @@
+import type { MonstGirl, Player, ServiceSession, Guest } from '@/lib/types'
+
+// Helper: format BWH string if all three values exist
+function girlBWH(g: MonstGirl): string {
+  if (g.bust && g.waist && g.hip) return `B${g.bust} W${g.waist} H${g.hip}`
+  return ''
+}
+
 // ─── 系统提示词：服务/调教场景 ─────────────────────────────────────────────────
 
 export function buildServiceSystemPrompt(
