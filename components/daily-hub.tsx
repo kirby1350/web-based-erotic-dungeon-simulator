@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import { Settings, Coins, Calendar, Store, Sword, ShoppingBag, Heart, Users, X, Send, Loader2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { GameSave, MonstGirl, AppSettings } from '@/lib/types'
 import { GirlCard } from '@/components/girl-card'
 import { InteractionPanel } from '@/components/interaction-panel'
@@ -11,14 +11,16 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { buildOpeningDialoguePrompt } from '@/lib/prompt-builder'
 import { cn } from '@/lib/utils'
+import type { GameTab } from '@/app/game/page'
 
 interface DailyHubProps {
   save: GameSave
   settings: AppSettings
   onSaveChange: (save: GameSave) => void
+  onNavigate: (tab: GameTab) => void
 }
 
-export function DailyHub({ save, settings, onSaveChange }: DailyHubProps) {
+export function DailyHub({ save, settings, onSaveChange, onNavigate }: DailyHubProps) {
   const router = useRouter()
   const [girlsDrawerOpen, setGirlsDrawerOpen] = useState(false)
   const [interactingWith, setInteractingWith] = useState<MonstGirl | null>(null)
@@ -32,13 +34,14 @@ export function DailyHub({ save, settings, onSaveChange }: DailyHubProps) {
   useEffect(() => {
     if (opened) return
     setOpened(true)
-    if (!settings.chatApiKey && !settings.grokApiKey) {
-      setChatMessages([{ role: 'system', text: `欢迎回来，${player.name}。今天是第 ${save.currentDay} 天，你的娼馆已经开门了。` }])
+    const fallback = `欢迎回来，${player.name}。今天是第 ${save.currentDay} 天，你的娼馆已经开门了。`
+    const apiKey = settings.chatModel.startsWith('grok') ? settings.grokApiKey : settings.chatApiKey
+    if (!apiKey) {
+      setChatMessages([{ role: 'system', text: fallback }])
       return
     }
     setChatLoading(true)
     const prompt = buildOpeningDialoguePrompt('game-start', player, girls)
-    const apiKey = settings.chatModel.startsWith('grok') ? settings.grokApiKey : settings.chatApiKey
     fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -47,11 +50,9 @@ export function DailyHub({ save, settings, onSaveChange }: DailyHubProps) {
       .then((r) => r.json())
       .then((data) => {
         const text = (data.content ?? data.text ?? '').trim()
-        setChatMessages([{ role: 'system', text: text || `今天是第 ${save.currentDay} 天，娼馆开门迎客。` }])
+        setChatMessages([{ role: 'system', text: text || fallback }])
       })
-      .catch(() => {
-        setChatMessages([{ role: 'system', text: `今天是第 ${save.currentDay} 天，娼馆开门迎客。` }])
-      })
+      .catch(() => setChatMessages([{ role: 'system', text: fallback }]))
       .finally(() => setChatLoading(false))
   }, [])
 
@@ -86,7 +87,7 @@ export function DailyHub({ save, settings, onSaveChange }: DailyHubProps) {
       if (res.ok) {
         const data = await res.json()
         const reply = (data.content ?? data.text ?? '').trim()
-        setChatMessages((prev) => [...prev, { role: 'system', text: reply }])
+        if (reply) setChatMessages((prev) => [...prev, { role: 'system', text: reply }])
       }
     } catch { /* ignore */ }
     finally { setChatLoading(false) }
@@ -151,11 +152,29 @@ export function DailyHub({ save, settings, onSaveChange }: DailyHubProps) {
           <div ref={chatEndRef} />
         </div>
 
+        {/* Action buttons as bottom tab bar */}
         <div className="px-4 pb-2">
           <div className="grid grid-cols-3 gap-2">
-            <ActionButton icon={Store} label="开张营业" color="primary" onClick={() => router.push('/game/service?type=service')} disabled={girls.length === 0} />
-            <ActionButton icon={Sword} label="调教魔物娘" color="rose" onClick={() => router.push('/game/service?type=training')} disabled={girls.length === 0} />
-            <ActionButton icon={ShoppingBag} label="奴隶市场" color="amber" onClick={() => router.push('/game/market')} />
+            <ActionButton
+              icon={Store}
+              label="开张营业"
+              color="primary"
+              onClick={() => onNavigate('service')}
+              disabled={girls.length === 0}
+            />
+            <ActionButton
+              icon={Sword}
+              label="调教魔物娘"
+              color="rose"
+              onClick={() => onNavigate('training')}
+              disabled={girls.length === 0}
+            />
+            <ActionButton
+              icon={ShoppingBag}
+              label="奴隶市场"
+              color="amber"
+              onClick={() => onNavigate('market')}
+            />
           </div>
         </div>
 
@@ -187,7 +206,7 @@ export function DailyHub({ save, settings, onSaveChange }: DailyHubProps) {
               {girls.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-40 gap-2">
                   <p className="text-sm text-muted-foreground text-center">馆内还没有魔物娘</p>
-                  <Button variant="outline" size="sm" onClick={() => { setGirlsDrawerOpen(false); router.push('/game/market') }}>
+                  <Button variant="outline" size="sm" onClick={() => { setGirlsDrawerOpen(false); onNavigate('market') }}>
                     前往奴隶市场
                   </Button>
                 </div>

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { ArrowLeft, RefreshCw, Loader2, Coins, ShoppingCart, Filter, Send } from 'lucide-react'
 import { GameSave, MonstGirl, AppSettings } from '@/lib/types'
 import { Button } from '@/components/ui/button'
@@ -18,10 +17,10 @@ interface MarketScreenProps {
   save: GameSave
   settings: AppSettings
   onSaveChange: (save: GameSave) => void
+  onBack: () => void
 }
 
-export function MarketScreen({ save, settings, onSaveChange }: MarketScreenProps) {
-  const router = useRouter()
+export function MarketScreen({ save, settings, onSaveChange, onBack }: MarketScreenProps) {
   const { player, girls } = save
 
   const [step, setStep] = useState<'market' | 'purchase-dialogue'>('market')
@@ -222,7 +221,7 @@ export function MarketScreen({ save, settings, onSaveChange }: MarketScreenProps
         </div>
 
         <div className="border-t border-border p-4 flex justify-center">
-          <Button className="h-10 px-8 glow-btn" onClick={() => router.push('/game')}>带她回娼馆</Button>
+          <Button className="h-10 px-8 glow-btn" onClick={onBack}>带她回娼馆</Button>
         </div>
       </div>
     )
@@ -232,7 +231,7 @@ export function MarketScreen({ save, settings, onSaveChange }: MarketScreenProps
     <div className="flex flex-col h-screen bg-background">
       <header className="border-b border-border px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="w-7 h-7" onClick={() => router.push('/game')}><ArrowLeft className="w-4 h-4" /></Button>
+          <Button variant="ghost" size="icon" className="w-7 h-7" onClick={onBack}><ArrowLeft className="w-4 h-4" /></Button>
           <h1 className="text-sm font-bold gold-text">奴隶市场</h1>
         </div>
         <div className="flex items-center gap-1.5">

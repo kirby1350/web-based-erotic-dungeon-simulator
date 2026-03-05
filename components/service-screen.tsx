@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import { ArrowLeft, CheckCircle, RefreshCw, Loader2, Send, ChevronRight } from 'lucide-react'
 import {
   GameSave,
@@ -54,12 +53,12 @@ interface ServiceScreenProps {
   type: 'service' | 'training'
   settings: AppSettings
   onSaveChange: (save: GameSave) => void
+  onBack: () => void
 }
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export function ServiceScreen({ save, type, settings, onSaveChange }: ServiceScreenProps) {
-  const router = useRouter()
+export function ServiceScreen({ save, type, settings, onSaveChange, onBack }: ServiceScreenProps) {
   const { player, girls } = save
 
   const [step, setStep] = useState<ServiceStep>('pick-type')
@@ -294,7 +293,7 @@ export function ServiceScreen({ save, type, settings, onSaveChange }: ServiceScr
           variant="ghost"
           size="icon"
           className="w-7 h-7"
-          onClick={() => (step === 'active' ? endSession() : router.push('/game'))}
+          onClick={() => (step === 'active' ? endSession() : onBack())}
         >
           <ArrowLeft className="w-4 h-4" />
         </Button>
@@ -457,7 +456,15 @@ export function ServiceScreen({ save, type, settings, onSaveChange }: ServiceScr
           <Button
             className="h-10 px-8 glow-btn gap-2"
             disabled={openingLoading}
-            onClick={() => setStep('active')}
+            onClick={() => {
+              // Seed the chat with opening text so SuggestionBar fires immediately
+              if (openingText) {
+                const seed: ChatMessage = { role: 'assistant', content: openingText }
+                setMessages([seed])
+                setLastAiMsg(openingText)
+              }
+              setStep('active')
+            }}
           >
             继续
             <ChevronRight className="w-4 h-4" />
@@ -610,7 +617,7 @@ export function ServiceScreen({ save, type, settings, onSaveChange }: ServiceScr
             </p>
           </div>
 
-          <Button className="w-full max-w-sm h-11 glow-btn" onClick={() => router.push('/game')}>
+          <Button className="w-full max-w-sm h-11 glow-btn" onClick={onBack}>
             返回大厅
           </Button>
         </div>

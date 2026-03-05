@@ -46,7 +46,11 @@ export function InteractionPanel({
   // Auto-generate opening greeting
   useEffect(() => {
     const apiKey = settings.chatModel.startsWith('grok') ? settings.grokApiKey : settings.chatApiKey
-    if (!apiKey) return
+    const fallback = `……（${girl.name} 看了看你，${girl.affection >= 50 ? '露出了微笑' : '保持着沉默'}）`
+    if (!apiKey) {
+      setMessages([{ role: 'assistant', content: fallback }])
+      return
+    }
     const prompt = buildOpeningDialoguePrompt('interaction', player, [girl], { girl })
     fetch('/api/chat', {
       method: 'POST',
@@ -56,9 +60,9 @@ export function InteractionPanel({
       .then((r) => r.json())
       .then((data) => {
         const text = (data.content ?? data.text ?? '').trim()
-        if (text) setMessages([{ role: 'assistant', content: text }])
+        setMessages([{ role: 'assistant', content: text || fallback }])
       })
-      .catch(() => {})
+      .catch(() => setMessages([{ role: 'assistant', content: fallback }]))
   }, [])
 
   const systemPrompt = buildInteractionSystemPrompt(player, girl, mode)
