@@ -12,6 +12,7 @@ import { Send, Square } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ChatMessage, AppSettings } from '@/lib/types'
+import { stripStatsBlock } from '@/lib/game-engine'
 import { cn } from '@/lib/utils'
 
 export interface ChatEngineHandle {
@@ -25,6 +26,7 @@ interface ChatEngineProps {
   settings: AppSettings
   onAssistantReply?: (content: string) => void
   onStreamComplete?: (fullContent: string) => void
+  onRawStreamComplete?: (rawContent: string) => void  // raw text including <!--STATS:...-->
   disabled?: boolean
   placeholder?: string
   className?: string
@@ -40,6 +42,7 @@ export const ChatEngine = forwardRef<ChatEngineHandle, ChatEngineProps>(
       settings,
       onAssistantReply,
       onStreamComplete,
+      onRawStreamComplete,
       disabled = false,
       placeholder = '输入你的行动…',
       className,
@@ -113,8 +116,9 @@ export const ChatEngine = forwardRef<ChatEngineHandle, ChatEngineProps>(
                   const parsed = JSON.parse(text)
                   const delta = parsed.choices?.[0]?.delta?.content ?? parsed.content ?? ''
                   full += delta
-                  setStreamingText(full)
-                  onAssistantReply?.(full)
+                  const cleanFull = stripStatsBlock(full)
+                  setStreamingText(cleanFull)
+                  onAssistantReply?.(cleanFull)
                 } catch {
                   // plain text fallback
                   full += text
@@ -125,9 +129,11 @@ export const ChatEngine = forwardRef<ChatEngineHandle, ChatEngineProps>(
           }
 
           if (full) {
-            const assistantMsg: ChatMessage = { role: 'assistant', content: full }
+            const clean = stripStatsBlock(full)
+            const assistantMsg: ChatMessage = { role: 'assistant', content: clean }
             onMessagesChange([...next, assistantMsg])
-            onStreamComplete?.(full)
+            onStreamComplete?.(clean)
+            onRawStreamComplete?.(full)  // raw contains <!--STATS:...-->
           }
         } catch (err: unknown) {
           if ((err as Error)?.name !== 'AbortError') {

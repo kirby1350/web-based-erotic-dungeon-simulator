@@ -21,7 +21,7 @@ import {
   buildOpeningDialoguePrompt,
 } from '@/lib/prompt-builder'
 import {
-  createServiceSession, applyStatDelta, estimateStatDelta,
+  createServiceSession, applyStatDelta, estimateStatDelta, parseStatsFromReply,
   calcServiceReward, calcGirlStatGrowth, updateGuestSatisfaction, findEligibleTrainers,
 } from '@/lib/game-engine'
 import { cn } from '@/lib/utils'
@@ -247,10 +247,15 @@ export function ServiceScreen({ save, type, settings, onSaveChange, onBack }: Se
 
   // ─── Session helpers ─────────────────────────────────────────────────────────
 
-  const handleStreamComplete = useCallback((fullContent: string) => {
-    setLastAiMsg(fullContent)
+  const handleRawReply = useCallback((rawContent: string) => {
+    setLastAiMsg(rawContent)
     if (!session) return
-    const delta = estimateStatDelta(fullContent)
+
+    // Try AI-generated stats first, fallback to keyword estimation
+    const aiStats = parseStatsFromReply(rawContent)
+    const delta = aiStats ?? estimateStatDelta(rawContent)
+    const satisfactionDelta = aiStats?.satisfactionDelta
+
     setSession((prev) => {
       if (!prev) return prev
       const newGirlsStats = { ...prev.girlsStats }
@@ -262,7 +267,7 @@ export function ServiceScreen({ save, type, settings, onSaveChange, onBack }: Se
         girlsStats: newGirlsStats,
         guestStats: prev.guestStats ? applyStatDelta(prev.guestStats, delta) : undefined,
         trainerStats: prev.trainerStats ? applyStatDelta(prev.trainerStats, delta) : undefined,
-        guest: prev.guest ? updateGuestSatisfaction(prev.guest, delta.pleasureDelta) : undefined,
+        guest: prev.guest ? updateGuestSatisfaction(prev.guest, delta.pleasureDelta, satisfactionDelta) : undefined,
         messages,
       }
     })
@@ -636,7 +641,7 @@ export function ServiceScreen({ save, type, settings, onSaveChange, onBack }: Se
               messages={messages}
               onMessagesChange={setMessages}
               settings={settings}
-              onStreamComplete={handleStreamComplete}
+              onRawStreamComplete={handleRawReply}
               showInput={false}
               className="flex-1 min-h-0"
             />

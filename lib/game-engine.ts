@@ -1,5 +1,39 @@
 import { MonstGirl, Guest, ParticipantStats, ServiceSession, Player } from '@/lib/types'
 
+// ─── STATS 块解析 ──────────────────────────────────────────────────────────────
+
+const STATS_REGEX = /<!--STATS:(\{[^}]+\})-->/
+
+/**
+ * 从 AI 回复中解析隐藏的数值块。
+ * 返回 null 表示未找到，调用方应 fallback 到 estimateStatDelta。
+ */
+export function parseStatsFromReply(text: string): {
+  pleasureDelta: number
+  staminaDelta: number
+  satisfactionDelta: number
+} | null {
+  const match = text.match(STATS_REGEX)
+  if (!match) return null
+  try {
+    const obj = JSON.parse(match[1])
+    return {
+      pleasureDelta: Math.max(-10, Math.min(20, Number(obj.pleasure) || 0)),
+      staminaDelta: Math.max(-20, Math.min(-2, Number(obj.stamina) || -8)),
+      satisfactionDelta: Math.max(-5, Math.min(15, Number(obj.satisfaction) || 0)),
+    }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 剥离回复中的隐藏 STATS 块，返回干净的显示文本。
+ */
+export function stripStatsBlock(text: string): string {
+  return text.replace(STATS_REGEX, '').trimEnd()
+}
+
 // ─── 服务/调教数值计算 ──────────────────────────────────────────────────────────
 
 /**
@@ -148,8 +182,9 @@ export function findEligibleTrainers(girls: MonstGirl[], excludeId?: string): Mo
 
 /**
  * 更新满意度（服务场景）
+ * satisfactionDelta 直接传入时使用 AI 解析值，否则从 pleasureDelta 推算
  */
-export function updateGuestSatisfaction(guest: Guest, pleasureDelta: number): Guest {
-  const delta = Math.floor(pleasureDelta / 2)
+export function updateGuestSatisfaction(guest: Guest, pleasureDelta: number, satisfactionDelta?: number): Guest {
+  const delta = satisfactionDelta !== undefined ? satisfactionDelta : Math.floor(pleasureDelta / 2)
   return { ...guest, satisfaction: Math.min(100, Math.max(0, guest.satisfaction + delta)) }
 }
