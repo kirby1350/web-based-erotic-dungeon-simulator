@@ -26,13 +26,13 @@ export function DailyHub({ save, settings, onSaveChange, onNavigate, onOpenSetti
   const [chatMessages, setChatMessages] = useState<{ role: 'system' | 'player'; text: string }[]>([])
   const [chatInput, setChatInput] = useState('')
   const [chatLoading, setChatLoading] = useState(false)
-  const [opened, setOpened] = useState(false)
+  const openedRef = useRef(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const { player, girls } = save
 
   useEffect(() => {
-    if (opened) return
-    setOpened(true)
+    if (openedRef.current) return
+    openedRef.current = true
     const fallback = `欢迎回来，${player.name}。今天是第 ${save.currentDay} 天，你的娼馆已经开门了。`
     const apiKey = settings.chatModel.startsWith('grok') ? settings.grokApiKey : settings.chatApiKey
     if (!apiKey) {

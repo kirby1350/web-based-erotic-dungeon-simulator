@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Player } from '@/lib/types'
@@ -19,7 +18,6 @@ export function PlayerSetup({ onComplete }: PlayerSetupProps) {
   const [traits, setTraits] = useState<string[]>([])
   const [customTraits, setCustomTraits] = useState('')
   const [fetishes, setFetishes] = useState<string[]>([])
-  const [guestPref, setGuestPref] = useState('')
 
   const toggleTrait = (t: string) =>
     setTraits((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]))
@@ -38,18 +36,16 @@ export function PlayerSetup({ onComplete }: PlayerSetupProps) {
       fetishes,
       gold: 500,
       day: 1,
-      guestPreference: guestPref,
+      guestPreference: '',
       marketPreference: '',
     })
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* 馆主名称 */}
       <div className="space-y-2">
-        <Label htmlFor="player-name" className="text-sm text-foreground/80">
-          馆主名称
-        </Label>
+        <Label htmlFor="player-name" className="text-sm text-foreground/80">馆主名称</Label>
         <Input
           id="player-name"
           value={name}
@@ -86,9 +82,7 @@ export function PlayerSetup({ onComplete }: PlayerSetupProps) {
 
       {/* 自定义特性 */}
       <div className="space-y-2">
-        <Label htmlFor="custom-traits" className="text-xs text-muted-foreground">
-          自定义特性（可选）
-        </Label>
+        <Label htmlFor="custom-traits" className="text-xs text-muted-foreground">自定义特性（可选）</Label>
         <Input
           id="custom-traits"
           value={customTraits}
@@ -123,26 +117,6 @@ export function PlayerSetup({ onComplete }: PlayerSetupProps) {
         </div>
       </div>
 
-      {/* 客人偏好 */}
-      <div className="space-y-2">
-        <div>
-          <Label htmlFor="guest-pref" className="text-sm text-foreground/80">
-            客人倾向（可选）
-          </Label>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            描述你希望光顾的客人类型，AI 会据此生成客人
-          </p>
-        </div>
-        <Textarea
-          id="guest-pref"
-          value={guestPref}
-          onChange={(e) => setGuestPref(e.target.value)}
-          placeholder="例如：倾向于正太冒险家、富裕的中年商人、神秘的精灵……"
-          className="bg-input border-border text-sm resize-none"
-          rows={3}
-        />
-      </div>
-
       {/* 当前选择摘要 */}
       {(traits.length > 0 || fetishes.length > 0) && (
         <div className="bg-secondary/30 rounded-lg p-3 space-y-2">
@@ -150,9 +124,7 @@ export function PlayerSetup({ onComplete }: PlayerSetupProps) {
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] text-muted-foreground shrink-0">特性：</span>
               {traits.map((t) => (
-                <Badge key={t} variant="secondary" className="text-[10px] h-4 px-1.5">
-                  {t}
-                </Badge>
+                <Badge key={t} variant="secondary" className="text-[10px] h-4 px-1.5">{t}</Badge>
               ))}
             </div>
           )}
@@ -160,24 +132,14 @@ export function PlayerSetup({ onComplete }: PlayerSetupProps) {
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] text-muted-foreground shrink-0">癖好：</span>
               {fetishes.map((f) => (
-                <Badge
-                  key={f}
-                  variant="secondary"
-                  className="text-[10px] h-4 px-1.5 border-rose-500/20 text-rose-400/70"
-                >
-                  {f}
-                </Badge>
+                <Badge key={f} variant="secondary" className="text-[10px] h-4 px-1.5 border-rose-500/20 text-rose-400/70">{f}</Badge>
               ))}
             </div>
           )}
         </div>
       )}
 
-      <Button
-        className="w-full h-11 glow-btn"
-        disabled={!canContinue}
-        onClick={handleSubmit}
-      >
+      <Button className="w-full h-11 glow-btn" disabled={!canContinue} onClick={handleSubmit}>
         确认信息，选择魔物娘
       </Button>
     </div>

@@ -6,13 +6,12 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Slider } from '@/components/ui/slider'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { MonstGirl, AppSettings } from '@/lib/types'
 import { GIRL_TEMPLATES } from '@/lib/game-data'
 import { GirlTemplates } from '@/components/girl-templates'
 import { ImageDisplay } from '@/components/image-display'
 import { buildTagGenerationPrompt } from '@/lib/prompt-builder'
-import { Loader2, Sparkles } from 'lucide-react'
+import { Loader2, Sparkles, RefreshCw, ImageIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { nanoid } from 'nanoid'
 
@@ -28,10 +27,12 @@ export function GirlCreator({ settings, onComplete }: GirlCreatorProps) {
   const [draft, setDraft] = useState<Omit<MonstGirl, 'id' | 'imageUrl'> | null>(null)
   const [generatingTags, setGeneratingTags] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | undefined>()
+  const [imageKey, setImageKey] = useState(0)
 
   const handleTemplateSelect = (tmpl: Omit<MonstGirl, 'id' | 'imageUrl'>) => {
     setDraft(tmpl)
     setPreviewUrl(undefined)
+    setImageKey(0)
   }
 
   const handleContinueToCustomize = () => {
@@ -42,6 +43,7 @@ export function GirlCreator({ settings, onComplete }: GirlCreatorProps) {
     setDraft((prev) => (prev ? { ...prev, ...partial } : null))
   }
 
+  // Button 1: AI summarise tags from text fields
   const generateTags = async () => {
     if (!draft) return
     setGeneratingTags(true)
@@ -54,17 +56,11 @@ export function GirlCreator({ settings, onComplete }: GirlCreatorProps) {
         outfit: draft.outfit,
         otherDesc: draft.otherDesc,
       })
-      const provider = settings.chatModel.startsWith('grok') ? 'grok' : 'default'
-      const apiKey = provider === 'grok' ? settings.grokApiKey : settings.chatApiKey
+      const apiKey = settings.chatModel.startsWith('grok') ? settings.grokApiKey : settings.chatApiKey
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: prompt }],
-          model: settings.chatModel,
-          apiKey,
-          stream: false,
-        }),
+        body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], model: settings.chatModel, apiKey, stream: false }),
       })
       if (res.ok) {
         const data = await res.json()
@@ -76,13 +72,15 @@ export function GirlCreator({ settings, onComplete }: GirlCreatorProps) {
     }
   }
 
+  // Button 2: Re-generate image from current tags
+  const regenerateImage = () => {
+    setPreviewUrl(undefined)
+    setImageKey((k) => k + 1)
+  }
+
   const handleFinish = () => {
     if (!draft) return
-    const girl: MonstGirl = {
-      ...draft,
-      id: nanoid(),
-      imageUrl: previewUrl,
-    }
+    const girl: MonstGirl = { ...draft, id: nanoid(), imageUrl: previewUrl }
     onComplete(girl)
   }
 
@@ -94,11 +92,7 @@ export function GirlCreator({ settings, onComplete }: GirlCreatorProps) {
           <p className="text-xs text-muted-foreground mt-0.5">下一步可以自定义她的详细设定</p>
         </div>
         <GirlTemplates onSelect={handleTemplateSelect} />
-        <Button
-          className="w-full h-11 glow-btn"
-          disabled={!draft}
-          onClick={handleContinueToCustomize}
-        >
+        <Button className="w-full h-11 glow-btn" disabled={!draft} onClick={handleContinueToCustomize}>
           自定义设定
         </Button>
       </div>
@@ -107,64 +101,54 @@ export function GirlCreator({ settings, onComplete }: GirlCreatorProps) {
 
   if (!draft) return null
 
+  const hasImageApiKey = settings.imageProvider === 'pixai' ? !!settings.pixaiApiKey : !!settings.tensorartApiKey
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex items-center gap-3">
         <button
-          className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+          className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
           onClick={() => setStep('template')}
         >
           重新选择模板
         </button>
         <span className="text-muted-foreground/30">|</span>
-        <span className="text-xs text-foreground/60">
-          当前：{draft.name}（{draft.race}）
-        </span>
+        <span className="text-xs text-foreground/60">{draft.name}（{draft.race}）</span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* 左列：基本信息 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Left: text fields */}
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">名字</Label>
-              <Input
-                value={draft.name}
-                onChange={(e) => updateDraft({ name: e.target.value })}
-                className="bg-input h-9 text-sm"
-                maxLength={10}
-              />
+              <Input value={draft.name} onChange={(e) => updateDraft({ name: e.target.value })} className="bg-input h-9 text-sm" maxLength={10} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">年龄</Label>
-              <Input
-                value={draft.age}
-                onChange={(e) => updateDraft({ age: e.target.value })}
-                className="bg-input h-9 text-sm"
-                maxLength={5}
-              />
+              <Input value={draft.age} onChange={(e) => updateDraft({ age: e.target.value })} className="bg-input h-9 text-sm" maxLength={5} />
             </div>
           </div>
 
-          {/* BWH */}
+          {/* 三围 */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">三围（cm）</Label>
             <div className="grid grid-cols-3 gap-2">
               {([
-                { label: 'B 胸围', key: 'bust' as const },
-                { label: 'W 腰围', key: 'waist' as const },
-                { label: 'H 臀围', key: 'hip' as const },
-              ] as { label: string; key: 'bust' | 'waist' | 'hip' }[]).map(({ label, key }) => (
+                { label: 'B 胸围', key: 'bust' as const, placeholder: '88' },
+                { label: 'W 腰围', key: 'waist' as const, placeholder: '58' },
+                { label: 'H 臀围', key: 'hip' as const, placeholder: '88' },
+              ]).map(({ label, key, placeholder }) => (
                 <div key={key} className="space-y-1">
                   <span className="text-[10px] text-muted-foreground">{label}</span>
                   <Input
                     type="number"
                     min={40}
                     max={130}
-                    value={draft[key] ?? ''}
-                    onChange={(e) => updateDraft({ [key]: Number(e.target.value) })}
-                    className="bg-input h-8 text-sm text-center"
-                    placeholder="—"
+                    value={draft[key] || ''}
+                    onChange={(e) => updateDraft({ [key]: Number(e.target.value) || 0 })}
+                    className="bg-input h-9 text-sm text-center"
+                    placeholder={placeholder}
                   />
                 </div>
               ))}
@@ -173,109 +157,97 @@ export function GirlCreator({ settings, onComplete }: GirlCreatorProps) {
 
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">身材外貌</Label>
-            <Textarea
-              value={draft.bodyDesc}
-              onChange={(e) => updateDraft({ bodyDesc: e.target.value })}
-              className="bg-input text-sm resize-none"
-              rows={2}
-            />
+            <Textarea value={draft.bodyDesc} onChange={(e) => updateDraft({ bodyDesc: e.target.value })} className="bg-input text-sm resize-none" rows={2} />
           </div>
 
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">性格设定</Label>
-            <Textarea
-              value={draft.personality}
-              onChange={(e) => updateDraft({ personality: e.target.value })}
-              className="bg-input text-sm resize-none"
-              rows={2}
-            />
+            <Textarea value={draft.personality} onChange={(e) => updateDraft({ personality: e.target.value })} className="bg-input text-sm resize-none" rows={2} />
           </div>
 
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">服装</Label>
-            <Textarea
-              value={draft.outfit}
-              onChange={(e) => updateDraft({ outfit: e.target.value })}
-              className="bg-input text-sm resize-none"
-              rows={2}
-            />
+            <Textarea value={draft.outfit} onChange={(e) => updateDraft({ outfit: e.target.value })} className="bg-input text-sm resize-none" rows={2} />
           </div>
 
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">其他设定（背景故事等）</Label>
-            <Textarea
-              value={draft.otherDesc}
-              onChange={(e) => updateDraft({ otherDesc: e.target.value })}
-              className="bg-input text-sm resize-none"
-              rows={2}
-            />
+            <Textarea value={draft.otherDesc} onChange={(e) => updateDraft({ otherDesc: e.target.value })} className="bg-input text-sm resize-none" rows={2} />
           </div>
         </div>
 
-        {/* 右列：数值 + 图片 */}
+        {/* Right: stats + image */}
         <div className="space-y-4">
-          {/* Sliders */}
+          {/* Initial stats */}
           <div className="space-y-4 bg-secondary/20 rounded-lg p-4">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">初始属性</p>
-            {[
+            {([
               { label: '好感度', key: 'affection' as const, color: 'text-pink-400' },
               { label: '服从度', key: 'obedience' as const, color: 'text-sky-400' },
               { label: '淫乱度', key: 'lewdness' as const, color: 'text-rose-400' },
-            ].map(({ label, key, color }) => (
+            ]).map(({ label, key, color }) => (
               <div key={key} className="space-y-2">
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">{label}</span>
                   <span className={color}>{draft[key]}</span>
                 </div>
-                <Slider
-                  value={[draft[key]]}
-                  onValueChange={([v]) => updateDraft({ [key]: v })}
-                  min={0}
-                  max={100}
-                  step={5}
-                  className="w-full"
-                />
+                <Slider value={[draft[key]]} onValueChange={([v]) => updateDraft({ [key]: v })} min={0} max={100} step={5} className="w-full" />
               </div>
             ))}
           </div>
 
-          {/* Image tags */}
+          {/* Image section */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs text-muted-foreground">生图 TAG</Label>
+            {/* Image preview */}
+            <ImageDisplay
+              key={imageKey}
+              tags={draft.imageTags}
+              settings={settings}
+              cachedUrl={imageKey === 0 ? previewUrl : undefined}
+              onUrlCached={setPreviewUrl}
+              alt={draft.name}
+              autoGenerate={imageKey > 0}
+              className="w-full"
+            />
+
+            {/* Two action buttons */}
+            <div className="grid grid-cols-2 gap-2">
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="h-6 text-[10px] text-primary/70 hover:text-primary px-2"
+                className="h-8 text-xs gap-1.5"
                 disabled={generatingTags || !settings.chatApiKey}
                 onClick={generateTags}
+                title="根据文字设定让 AI 总结生图 TAG"
               >
-                {generatingTags ? (
-                  <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                ) : (
-                  <Sparkles className="w-3 h-3 mr-1" />
-                )}
-                AI 生成
+                {generatingTags ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                总结 TAG
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1.5"
+                disabled={!hasImageApiKey || !draft.imageTags}
+                onClick={regenerateImage}
+                title="根据当前 TAG 重新生成图片"
+              >
+                <RefreshCw className="w-3 h-3" />
+                重新生图
               </Button>
             </div>
-            <Textarea
-              value={draft.imageTags}
-              onChange={(e) => updateDraft({ imageTags: e.target.value })}
-              className="bg-input text-xs font-mono resize-none"
-              rows={3}
-              placeholder="英文生图 tag，逗号分隔"
-            />
-          </div>
 
-          {/* Image preview */}
-          <ImageDisplay
-            tags={draft.imageTags}
-            settings={settings}
-            cachedUrl={previewUrl}
-            onUrlCached={setPreviewUrl}
-            alt={draft.name}
-            className="w-full"
-          />
+            {/* TAG textarea */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">生图 TAG（可手动编辑）</Label>
+              <Textarea
+                value={draft.imageTags}
+                onChange={(e) => updateDraft({ imageTags: e.target.value })}
+                className="bg-input text-xs font-mono resize-none"
+                rows={3}
+                placeholder="英文生图 tag，逗号分隔"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
