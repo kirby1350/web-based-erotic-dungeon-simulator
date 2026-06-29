@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { Upload, Sword, Wand2, Shield, Sparkles } from 'lucide-react'
-import { Character, Race, RACE_INFO, CharacterMeasurements, CHARACTER_PRESETS, CharacterPreset } from '@/lib/types'
+import { Character, Race, RACE_INFO, CharacterMeasurements, CHARACTER_PRESETS, CharacterPreset, rollFloorThemes } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 interface CharacterCreatorProps {
@@ -63,7 +63,6 @@ export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
       otherDescription: otherDescription.trim(),
       danbooruTags: danbooruTags.trim() || undefined,
       avatarUrl,
-      level: 1,
       hp: 100,
       maxHp: 100,
       pleasure: 0,
@@ -71,6 +70,7 @@ export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
       bodyDevelopment: { breast: 0, clitoris: 0, urethra: 0, vagina: 0, anus: 0 },
       statusEffects: [],
       floor: 1,
+      floorThemes: rollFloorThemes(),
       encounter: null,
     }
     onComplete(character)

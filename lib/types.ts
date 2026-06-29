@@ -48,7 +48,6 @@ export interface Character {
   // base danbooru appearance tags, injected into every image prompt for consistency
   danbooruTags?: string
   avatarUrl: string | null
-  level: number
   hp: number
   maxHp: number
   pleasure: number
@@ -57,6 +56,8 @@ export interface Character {
   statusEffects: StatusEffect[]
   // current dungeon floor (depth); starts at 1
   floor?: number
+  // per-floor theme names rolled at creation (index 0 = floor 1 … TARGET_FLOOR-1 = floor 10)
+  floorThemes?: string[]
   // current trap/monster encounter, or null when free
   encounter?: Encounter | null
 }
@@ -195,19 +196,82 @@ export const CHAT_MODELS: ChatModelInfo[] = [
   { value: 'grok-3-mini', label: 'Grok 3 Mini', group: 'Grok (xAI)', provider: 'grok' },
 ]
 
-export const RACE_INFO: Record<Race, { label: string; description: string }> = {
+// description: 面向玩家（创建界面展示）；trait: 面向 DM（注入提示，真正影响叙事/陷阱反应）
+export const RACE_INFO: Record<Race, { label: string; description: string; trait: string }> = {
   human: {
     label: '人族',
-    description: '全能均衡，适应力极强，擅长各种技能',
+    description: '均衡耐受、理智坚韧——堕落来得慢，可一旦崩坏便再难回头。',
+    trait: '均衡耐受、理智较顽强：快感与欲望上涨速度正常，崩坏来得更晚却也更彻底。抵抗类描写应多一分内心挣扎与不甘；一旦防线被攻破，前后反差的堕落格外强烈。',
   },
   elf: {
     label: '精灵族',
-    description: '灵敏轻盈，魔法天赋极高，与自然亲密',
+    description: '魔法亲和、肌肤敏感——媚药与淫纹等魔法陷阱对她效果加倍，越高傲越易被玷染。',
+    trait: '魔法亲和、肌肤极度敏感：媚药、花粉、淫纹、催眠、魅魔等「魔法/精神系」陷阱对她效果翻倍，身体开发更快、更易高潮失禁；但高傲长寿令她被玷污时的羞耻与屈辱感格外浓烈。',
   },
   tauren: {
     label: '牛人族',
-    description: '体魄强健，力量惊人，拥有古老的萨满智慧',
+    description: '体魄强健、血脉旺盛——寻常束缚难困，可一旦发情便如野兽般疯狂，天生易泌乳。',
+    trait: '体魄强健、萨满血脉旺盛：HP 与物理耐受高，寻常束缚更难困住她；却因发情血脉而欲望一旦点燃便如野兽般疯狂。天生巨乳易泌乳，适合大量产乳、孕感、被强健怪物压制征服的描写。',
   },
+}
+
+// ---------------------------------------------------------------------------
+// 地下城层数与每层风貌
+// ---------------------------------------------------------------------------
+
+export const TARGET_FLOOR = 10
+
+export interface FloorTheme {
+  name: string
+  // 给 DM 的环境/危险氛围描述
+  ambience: string
+  // 该层基调的 danbooru 场景标签（供 DM 写 [SCENE] 时融入）
+  scene: string
+}
+
+// 普通楼层（1~9 层）的生物群系池，开局随机洗牌抽取
+export const FLOOR_THEMES: FloorTheme[] = [
+  { name: '潮湿苔窟', ambience: '幽暗滴水的苔藓洞窟，地面湿滑、空气黏腻，墙缝里蠕动着不明触须', scene: 'cave, moss, wet, dripping water, dim lighting, underground' },
+  { name: '触手深渊', ambience: '布满搏动触手的巢穴，无数触须从穹顶与裂缝垂落、伺机缠绕猎物', scene: 'tentacles, cave, slime, dark, pulsating, underground' },
+  { name: '催情花园', ambience: '盛开着巨大食人花的地下花园，浓密花粉与花蜜令人理智迷醉', scene: 'plant, giant flower, pollen, vines, flower field, petals' },
+  { name: '史莱姆沼泽', ambience: '半透明史莱姆铺满的沼泽，黏液没膝、不断渗入衣物与孔穴', scene: 'slime, swamp, transparent, goo, bubbles, underground' },
+  { name: '魅魔回廊', ambience: '镶满古镜的回廊，镜中魅魔以幻象与催眠话语诱人堕落', scene: 'mirror, corridor, succubus, illusion, magic circle, candles' },
+  { name: '寄生蚁道', ambience: '虫卵密布的寄生虫蚁道，蠕虫钻动、潮热腥膻', scene: 'insect, eggs, tunnel, parasite, organic, slimy' },
+  { name: '古代刑具遗迹', ambience: '锈蚀机械与拘束装置的遗迹，金属刑具自动启动、强制固定猎物', scene: 'ancient ruins, machinery, restraints, metal, gears, stone' },
+  { name: '血肉迷宫', ambience: '由活体血肉构成的迷宫，墙壁起伏蠕动、淌着黏液与体温', scene: 'flesh, organic walls, biolab, veins, pulsating, red' },
+  { name: '淫纹祭坛', ambience: '刻满发烫淫纹的祭坛，魔力将身体强制摆成屈辱姿势', scene: 'altar, glowing runes, magic circle, ritual, purple glow' },
+  { name: '媚药温泉', ambience: '雾气蒸腾的地底媚药温泉，温热泉水浸透全身、敏感度暴涨', scene: 'hot spring, steam, water, cave, aphrodisiac, wet' },
+  { name: '蛛网囚牢', ambience: '巨蛛盘踞的丝网囚牢，黏丝层层捆缚、动弹不得', scene: 'spider web, bondage, silk, cocoon, dark, restrained' },
+  { name: '梦魇卧房', ambience: '诡异奢靡的梦魇卧房，催眠香氛令人分不清现实与春梦', scene: 'bedroom, canopy bed, incense, hypnosis, luxurious, dim' },
+]
+
+// 第 10 层固定的最终层
+export const BOSS_FLOOR_THEME: FloorTheme = {
+  name: '魔王核心·淫狱王座',
+  ambience: '地下城最深处的淫狱核心，魔王盘踞于血肉王座之上，这里是冒险的终点与最终对决',
+  scene: 'demon, throne, dark fantasy, ominous, magic, boss, grand hall',
+}
+
+// 开局为 1~TARGET_FLOOR 层各抽一个风貌名；第 TARGET_FLOOR 层固定为魔王核心
+export function rollFloorThemes(): string[] {
+  const pool = [...FLOOR_THEMES]
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[pool[i], pool[j]] = [pool[j], pool[i]]
+  }
+  const names: string[] = []
+  for (let f = 1; f <= TARGET_FLOOR; f++) {
+    names.push(f >= TARGET_FLOOR ? BOSS_FLOOR_THEME.name : pool[(f - 1) % pool.length].name)
+  }
+  return names
+}
+
+// 取某层的风貌，兼容缺少 floorThemes 的旧存档（按层数确定性回退）
+export function getFloorTheme(floorThemes: string[] | undefined, floor: number): FloorTheme {
+  if (floor >= TARGET_FLOOR) return BOSS_FLOOR_THEME
+  const name = floorThemes?.[floor - 1]
+  const found = name ? FLOOR_THEMES.find((t) => t.name === name) : undefined
+  return found ?? FLOOR_THEMES[(Math.max(1, floor) - 1) % FLOOR_THEMES.length]
 }
 
 export interface CharacterPreset {

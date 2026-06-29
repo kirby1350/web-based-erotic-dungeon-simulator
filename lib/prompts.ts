@@ -1,4 +1,4 @@
-import { Character, Race } from '@/lib/types'
+import { Character, Race, RACE_INFO, TARGET_FLOOR, getFloorTheme } from '@/lib/types'
 
 // ============================================================================
 // 集中管理：本项目所有 AI 提示词（聊天 DM / 故事摘要 / 随机陷阱 / 图片标签）
@@ -77,7 +77,10 @@ export function buildSystemPrompt(character: Character, summary?: string): strin
       ? `- 异常状态：${se.map((s) => `${s.title}(id=${s.id})`).join('、')}`
       : '- 异常状态：无'
   const floor = character.floor ?? 1
-  const floorLine = `- 当前层数：第 ${floor} 层`
+  const currentTheme = getFloorTheme(character.floorThemes, floor)
+  const nextTheme = floor < TARGET_FLOOR ? getFloorTheme(character.floorThemes, floor + 1) : null
+  const floorLine = `- 当前层数：第 ${floor} / ${TARGET_FLOOR} 层（${currentTheme.name}）`
+  const raceTrait = RACE_INFO[character.race]?.trait ?? ''
   const enc = character.encounter
   const encounterLine = enc
     ? `- 当前遭遇：【${enc.kind === 'monster' ? '怪物' : '陷阱'}】${enc.name}（id=${enc.id}，束缚Lv${enc.restraint}）——${enc.summary}`
@@ -88,8 +91,8 @@ export function buildSystemPrompt(character: Character, summary?: string): strin
 
 【玩家角色信息】
 - 名字：${character.name}
-- 种族：${raceLabel(character.race)}
-- 等级：${character.level} | 生命值：${character.hp}/${character.maxHp}
+- 种族：${raceLabel(character.race)}　|　种族特性：${raceTrait}
+- 生命值：${character.hp}/${character.maxHp}
 - 快感度：${character.pleasure}/100 | 欲望值：${character.desire}/100
 ${floorLine}
 ${encounterLine}
@@ -118,8 +121,11 @@ ${lewdVoiceRules(character.name)}
 4. 异常状态会强制改变叙述和选项（例：“发情”状态必须出现求操、扭腰等描写）。
 
 【地下城进度规则】
-1. 用「层数(floor)」表示深入程度，初始为第 1 层。当${character.name}向下深入、通过传送门或清除一层后，floor +1；正常情况下只增不减。
-2. 层数越深，陷阱与怪物越危险、越极端，描写与开发强度相应升级。
+1. 地下城共 ${TARGET_FLOOR} 层，层数越深，陷阱与怪物越危险、越极端，描写与开发强度相应升级。当前第 ${floor} / ${TARGET_FLOOR} 层。
+2. 本层风貌：「${currentTheme.name}」——${currentTheme.ambience}。本层出现的场景、陷阱、怪物都必须契合该主题；[SCENE] 标签应融入本层基调（如：${currentTheme.scene}）。
+3. 进层条件：仅当${character.name}**明确选择下潜/走下楼梯/踏入传送门**，且当前遭遇已解除（encounter 为「无」）时，floor 才 +1；否则保持当前层。floor 只增不减。
+4. 每当进入新的一层，必须先用一段叙述描写这层崭新的风貌与氛围，再让${character.name}在其中自由探索、遭遇本层主题的全新陷阱。${nextTheme ? `\n5. 下一层（第 ${floor + 1} 层）的风貌为「${nextTheme.name}」——${nextTheme.ambience}；若本回合${character.name}成功下潜，立刻据此描写新一层。` : ''}
+6. 第 ${TARGET_FLOOR} 层为最终层「${getFloorTheme(character.floorThemes, TARGET_FLOOR).name}」，盘踞着地下城的主宰。抵达此层即进入最终对决——这是整场冒险的终极目标。
 
 【叙事与选项规则】
 1. 每次回复在叙述正文之后，必须严格输出恰好4个选项：

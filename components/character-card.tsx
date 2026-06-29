@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Character, BodyPart, RACE_INFO } from '@/lib/types'
+import { Character, BodyPart, RACE_INFO, TARGET_FLOOR, getFloorTheme } from '@/lib/types'
 import {
   Heart, RotateCcw,
   Flame, Sparkles, ChevronDown, ChevronUp,
@@ -93,15 +93,12 @@ export function CharacterCard({ character, onReset }: CharacterCardProps) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="font-bold text-sm truncate gold-text">{character.name}</h2>
-              <span className="text-xs text-muted-foreground bg-secondary px-1.5 py-0.5 rounded flex-shrink-0">
-                Lv.{character.level}
-              </span>
             </div>
             <div className="flex items-center gap-2">
               <p className="text-xs text-muted-foreground">{raceInfo.label}</p>
               <span className="flex items-center gap-1 text-[10px] text-amber-300/90 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full flex-shrink-0">
                 <Layers className="w-3 h-3" />
-                第 {character.floor ?? 1} 层
+                第 {character.floor ?? 1}/{TARGET_FLOOR} 层 · {getFloorTheme(character.floorThemes, character.floor ?? 1).name}
               </span>
             </div>
           </div>
