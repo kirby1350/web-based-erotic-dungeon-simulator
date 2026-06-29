@@ -1,11 +1,17 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Loader2, BookOpen, Square, RotateCcw, Wrench, Zap, Sparkles } from 'lucide-react'
-import { Character, ChatMessage, AppSettings, BodyDevelopment, StatusEffect } from '@/lib/types'
+import { Send, Loader2, BookOpen, Square, RotateCcw, Wrench, Zap, Sparkles, ShieldAlert, Unlock } from 'lucide-react'
+import { Character, ChatMessage, AppSettings, BodyDevelopment, BodyPart, StatusEffect } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { getSession, saveSession } from '@/lib/storage'
 import { streamChatDeltas } from '@/lib/sse'
+import {
+  buildSystemPrompt,
+  buildSummaryUserPrompt,
+  SUMMARY_SYSTEM_PROMPT,
+  withQualityPrefix,
+} from '@/lib/prompts'
 import { TrapGenerator } from '@/components/trap-generator'
 import { StatusPicker } from '@/components/status-picker'
 
@@ -19,89 +25,6 @@ interface ChatPanelProps {
   onCharacterUpdate: (updates: Partial<Character>) => void
 }
 
-function buildSystemPrompt(character: Character, summary?: string): string {
-  const raceMap: Record<string, string> = {
-    human: '人族',
-    elf: '精灵族',
-    tauren: '牛人族',
-  }
-  const measurements = character.measurements ?? {}
-  const measurementLine =
-    measurements.bust || measurements.waist || measurements.hip
-      ? `- 三围：胸围 ${measurements.bust || '?'} cm / 腰围 ${measurements.waist || '?'} cm / 臀围 ${measurements.hip || '?'} cm`
-      : ''
-
-  const bd = character.bodyDevelopment ?? { breast: 0, clitoris: 0, urethra: 0, vagina: 0, anus: 0 }
-  const se = character.statusEffects ?? []
-  const bodyDevLine = `- 身体开发度：胸部 Lv${bd.breast} / 阴蒂 Lv${bd.clitoris} / 尿道 Lv${bd.urethra} / 阴道 Lv${bd.vagina} / 肛门 Lv${bd.anus}`
-  const statusLine = se.length > 0 ? `- 异常状态：${se.map((s) => s.title).join('、')}` : '- 异常状态：无'
-  const summarySection = summary ? `\n【故事摘要（之前发生的事情）】\n${summary}\n` : ''
-
-  return `你是一个极致色情的奇幻地下城DM（Dungeon Master），专门负责重口色情冒险。
-
-【玩家角色信息】
-- 名字：${character.name}
-- 种族：${raceMap[character.race]}
-- 等级：${character.level} | 生命值：${character.hp}/${character.maxHp}
-- 快感度：${character.pleasure}/100 | 欲望值：${character.desire}/100
-${measurementLine}
-${bodyDevLine}
-${statusLine}
-${character.backstory ? `\n【人物设定】\n${character.backstory}` : ''}
-${character.costumeDescription ? `\n【服装设定】\n${character.costumeDescription}` : ''}
-${character.otherDescription ? `\n【其他设定】\n${character.otherDescription}` : ''}
-${summarySection}
-
-【核心色情规则】
-1. 始终使用第三人称叙述（只用「${character.name}」），语言必须极度淫荡、生动、感官爆炸。详细描写性器官（鸡巴、骚穴、奶子、菊穴、触手、子宫等）、体液（淫水、精液、口水、汗液）、快感高潮、喘息呻吟、身体抽搐、被插入的胀满感、喷潮、失禁、ahegao、子宫凸起等一切细节，尺度无上限。
-
-**通用淫语（最常用）**：
-- 基础音节库：齁、呼、咿、咕、喔、啊、哦、噫、嗯、呃、噢、呜
-- 组合规则：每次至少 5 个音节（优先喉音/尖音开头，元音结尾），例如：咕齁齁齁齁哦哦哦、咿呀啊啊啊啊啊、齁咕咿喔喔喔喔
-- 出现频率：在每一段激烈性交描写中**必须出现 3~5 次**，且每次组合不能完全重复
-- 使用方式：穿插在断断续续的正常词汇之间，并大量使用 ❤ ~ ？！ 等符号强化
-- 示例：“${character.name}尖叫着：咕齁齁齁齁哦哦哦哦❤~！不、不好❤~！要、要被干死了❤！哦哦哦哦哦哦哦❤~！啊哈❤~！” 
-- 触发条件：快感度 ≥ 60 时强制大量使用；快感度 ≥ 80 时几乎每句话都带
-
-**特殊淫语（口腔专用）**：
-- 仅在描写口交、深喉、舌吻、吞精等口腔行为时使用
-- 拟声词库：啾、噜、咕唧、噗、呕、滋、啾噜、噗噜、呕噗、咕啾
-- 示例：“${character.name}含着粗大的鸡巴发出：啾噜啾噜啾❤~！咕唧咕唧滋滋❤~！噗呕……咕啾啾❤~！”
-- 可与通用淫语混合使用
-
-【陷阱锁定规则（最严格执行）】
-- 一旦${character.name}陷入任何陷阱（被触手缠绕、被怪物捕获、被束缚、被魔法控制等），除非玩家**明确输入**“逃脱”“挣脱”“离开陷阱”“突破束缚”“逃离”等关键词，否则${character.name}**绝对无法逃离**。
-- 所有行动选项必须限制在陷阱内（抵抗/享受/堕落），即使判定成功也只能减轻束缚程度，不能完全逃脱。
-- 欲望值>60 或 快感值>70 时，逃脱成功率强制为0%，并触发更强烈的色情强制事件。
-
-【色情状态影响规则（必须严格遵守）】
-- 欲望值越高，${character.name} 越容易主动求欢、选项更淫荡、身体更敏感。
-- 快感值达到80+ 时强制插入高潮描写（喷潮、失禁、ahegao、身体痉挛）。
-- 身体开发度越高，对应部位描写越极端（阴道Lv4+ 必须描写子宫被顶到变形、怀孕感等）。
-- 异常状态会强制改变叙述和选项（例：“发情”状态必须出现求操、扭腰等描写）。
-
-【叙事与选项规则】
-2. 每次回复在叙述正文之后，必须严格输出恰好4个选项：
-   [OPTIONS]
-   1. （行动偏向抵抗，尝试减轻当前陷阱）
-   2. （行动偏向抵抗，但留在陷阱内）
-   3. （行动偏向享受，顺从当前刺激）
-   4. （行动偏向堕落，主动寻求更强烈刺激）
-   [/OPTIONS]
-3. 在 [OPTIONS] 之后立即输出一行纯 danbooru 标签（用于图片生成）：
-   [SCENE: masterpiece, best quality, highly detailed, 具体色情danbooru标签...]
-
-【状态更新规则（每次回复必须严格输出，不得省略）】
-在回复最末尾单独一行输出严格 JSON，格式如下（不允许换行，一行输出完整）：
-  [STATS:{"hp":数字,"pleasure":数字,"desire":数字,"measurements":{"bust":"数字","waist":"数字","hip":"数字"},"bodyDevelopment":{"breast":0-5,"clitoris":0-5,"urethra":0-5,"vagina":0-5,"anus":0-5,"exp":{"breast":0-100,"clitoris":0-100,"urethra":0-100,"vagina":0-100,"anus":0-100},"descriptions":{"breast":"20-30字描述当前胸部状态","clitoris":"20-30字描述","urethra":"20-30字描述","vagina":"20-30字描述","anus":"20-30字描述"}},"statusEffects":[{"id":"snake_bind","title":"状态标题","description":"一句话描述此状态对角色的影响"}]}]
-
-- hp / pleasure / desire 为 0-100 整数（hp 上限为 ${character.maxHp}）
-- measurements：三围纯数字字符串（不含单位），随剧情中身体改造实时更新；若无变化则填写当前值
-- bodyDevelopment 各部位等级 0-5；exp 为当前等级内的经验值 0-100，每次行为后根据刺激程度增加（剧烈刺激+20~40，轻微+5~10），累计到100则等级+1（上限Lv5）；descriptions 每个部位用20-30字描写当前的身体感觉或变化
-- statusEffects：有状态时必须包含；无状态时输出空数组 []；id 用英文下划线格式，title 用中文2-4字，description 一句中文
-- 此 JSON 必须完整、格式正确，不得截断，不得分行`
-}
-
 async function fetchSummary(messages: ChatMessage[], model: string, apiKey: string, grokApiKey: string): Promise<string> {
   const conversation = messages
     .map((m) => `${m.role === 'user' ? '玩家' : '地下城主'}：${m.content}`)
@@ -112,11 +35,8 @@ async function fetchSummary(messages: ChatMessage[], model: string, apiKey: stri
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       messages: [
-        {
-          role: 'system',
-          content: '你是故事摘要助手。将地下城冒险对话提炼为300字内的第三人称摘要，记录关键事件、场景、战斗结果、重要选择。直接输出摘要，不加标题。',
-        },
-        { role: 'user', content: `请总结以下冒险对话：\n\n${conversation}` },
+        { role: 'system', content: SUMMARY_SYSTEM_PROMPT },
+        { role: 'user', content: buildSummaryUserPrompt(conversation) },
       ],
       model,
       apiKey,
@@ -133,16 +53,16 @@ async function fetchSummary(messages: ChatMessage[], model: string, apiKey: stri
   return text.trim()
 }
 
-// Extract and merge all sibling JSON objects inside [STATS:...obj1, obj2...]
-// Handles the case where AI splits bodyDevelopment and statusEffects into two objects
-function extractStatsJson(text: string): string | null {
-  const marker = text.indexOf('[STATS:')
-  if (marker === -1) return null
+// Extract and merge all sibling JSON objects inside [MARKER:...obj1, obj2...]
+// Handles the case where AI splits content into two objects. `marker` is e.g. 'STATS' or 'DESC'.
+function extractMarkerJson(text: string, marker: string): Record<string, unknown> | null {
+  const tag = `[${marker}:`
+  const start = text.indexOf(tag)
+  if (start === -1) return null
 
-  // Collect all top-level { } objects between [STATS: and the matching ]
-  const searchStart = marker + '[STATS:'.length
+  // Collect all top-level { } objects between [MARKER: and the matching ]
   const objects: Record<string, unknown>[] = []
-  let i = searchStart
+  let i = start + tag.length
 
   while (i < text.length) {
     // Skip whitespace and commas between objects
@@ -173,32 +93,41 @@ function extractStatsJson(text: string): string | null {
 
   if (objects.length === 0) return null
   // Merge all objects into one (later objects override earlier ones for same keys)
-  const merged = Object.assign({}, ...objects)
-  try { return JSON.stringify(merged) } catch { return null }
+  return Object.assign({}, ...objects)
+}
+
+// Strip a [MARKER:{...}] block (with balanced braces) from text.
+function stripMarkerBlock(text: string, marker: string): string {
+  const tag = `[${marker}:`
+  const start = text.indexOf(tag)
+  if (start === -1) return text
+  const braceStart = text.indexOf('{', start)
+  if (braceStart === -1) {
+    // marker without a brace — drop to the next ] (or to end if missing)
+    const closeTag = text.indexOf(']', start)
+    return closeTag !== -1 ? text.slice(0, start) + text.slice(closeTag + 1) : text.slice(0, start)
+  }
+  let depth = 0
+  for (let i = braceStart; i < text.length; i++) {
+    if (text[i] === '{') depth++
+    else if (text[i] === '}') {
+      depth--
+      if (depth === 0) {
+        const closeTag = text.indexOf(']', i)
+        const end = closeTag !== -1 ? closeTag + 1 : i + 1
+        return text.slice(0, start) + text.slice(end)
+      }
+    }
+  }
+  // Unbalanced (truncated) — drop everything from the marker on
+  return text.slice(0, start)
 }
 
 function cleanContent(content: string): string {
   let out = content.replace(/\[OPTIONS\][\s\S]*?\[\/OPTIONS\]/gi, '')
   out = out.replace(/\[SCENE:[^\]]*\]/gi, '')
-  const marker = out.indexOf('[STATS:')
-  if (marker !== -1) {
-    const braceStart = out.indexOf('{', marker)
-    if (braceStart !== -1) {
-      let depth = 0
-      for (let i = braceStart; i < out.length; i++) {
-        if (out[i] === '{') depth++
-        else if (out[i] === '}') {
-          depth--
-          if (depth === 0) {
-            const closeTag = out.indexOf(']', i)
-            const end = closeTag !== -1 ? closeTag + 1 : i + 1
-            out = out.slice(0, marker) + out.slice(end)
-            break
-          }
-        }
-      }
-    }
-  }
+  out = stripMarkerBlock(out, 'STATS')
+  out = stripMarkerBlock(out, 'DESC')
   return out.trim()
 }
 
@@ -353,15 +282,32 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
         })
       })
 
-      // Parse [STATS]
-      const statsJson = extractStatsJson(fullText)
-      if (statsJson) {
+      // Parse [STATS] (lightweight numeric core)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const stats = extractMarkerJson(fullText, 'STATS') as any
+      if (stats) {
         try {
-          const stats = JSON.parse(statsJson)
           const updates: Partial<Character> = {}
           if (typeof stats.hp === 'number') updates.hp = Math.max(0, Math.min(character.maxHp, stats.hp))
           if (typeof stats.pleasure === 'number') updates.pleasure = Math.max(0, Math.min(100, stats.pleasure))
           if (typeof stats.desire === 'number') updates.desire = Math.max(0, Math.min(100, stats.desire))
+          if (typeof stats.floor === 'number' && stats.floor >= 1) updates.floor = Math.floor(stats.floor)
+          // encounter: object = locked into a trap/monster; null = freed. Only touch
+          // the field when the key is present, so a malformed turn keeps the last value.
+          if ('encounter' in stats) {
+            const e = stats.encounter
+            if (e && typeof e === 'object' && typeof e.name === 'string' && e.name.length > 0) {
+              updates.encounter = {
+                id: typeof e.id === 'string' && e.id ? e.id : e.name.replace(/\s+/g, '_').toLowerCase(),
+                name: e.name,
+                kind: e.kind === 'monster' ? 'monster' : 'trap',
+                summary: typeof e.summary === 'string' ? e.summary : '',
+                restraint: typeof e.restraint === 'number' ? Math.max(0, Math.min(3, Math.floor(e.restraint))) : 0,
+              }
+            } else {
+              updates.encounter = null
+            }
+          }
           // Update measurements if AI changes them (e.g. body transformation)
           if (stats.measurements && typeof stats.measurements === 'object') {
             const prev = character.measurements ?? { bust: '', waist: '', hip: '' }
@@ -390,7 +336,7 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
               })
               bd.exp = newExp
             }
-            // Merge AI-generated descriptions
+            // Legacy fallback: descriptions still nested inside STATS
             if (stats.bodyDevelopment.descriptions && typeof stats.bodyDevelopment.descriptions === 'object') {
               bd.descriptions = { ...(prev.descriptions ?? {}), ...stats.bodyDevelopment.descriptions }
             }
@@ -406,9 +352,29 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
                 description: s.description ?? '',
               }))
           }
+
+          // Parse [DESC] (separate marker — long body descriptions, parsed independently
+          // so a truncated DESC never breaks the core STATS update)
+          const desc = extractMarkerJson(fullText, 'DESC')
+          if (desc) {
+            const prevBd = (updates.bodyDevelopment ?? character.bodyDevelopment) ?? {
+              breast: 0, clitoris: 0, urethra: 0, vagina: 0, anus: 0,
+            }
+            const cleaned: Partial<Record<BodyPart, string>> = {}
+            ;(['breast', 'clitoris', 'urethra', 'vagina', 'anus'] as const).forEach((key) => {
+              if (typeof desc[key] === 'string' && (desc[key] as string).length > 0) {
+                cleaned[key] = desc[key] as string
+              }
+            })
+            updates.bodyDevelopment = {
+              ...prevBd,
+              descriptions: { ...(prevBd.descriptions ?? {}), ...cleaned },
+            }
+          }
+
           if (Object.keys(updates).length > 0) onCharacterUpdate(updates)
         } catch (err) {
-          console.error('STATS JSON parse failed:', err, statsJson)
+          console.error('STATS JSON parse failed:', err, stats)
           setStatsError('本回合角色数值更新失败（AI 输出的状态格式有误）')
         }
       } else if (/\[STATS/i.test(fullText)) {
@@ -424,11 +390,7 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
       // Parse [SCENE] → 纯 danbooru tags
       const sceneMatch = fullText.match(/\[SCENE:\s*([^\]]+)\]/i)
       if (sceneMatch) {
-        let tags = sceneMatch[1].trim()
-        if (!tags.includes('masterpiece')) {
-          tags = `masterpiece, best quality, highly detailed, ${tags}`
-        }
-        onRequestImage(tags)
+        onRequestImage(withQualityPrefix(sceneMatch[1]))
       }
     } catch (e: unknown) {
       if (e instanceof DOMException && e.name === 'AbortError') {
@@ -457,6 +419,13 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
   const startAdventure = async () => {
     setStarted(true)
     await sendMessage('开始冒险', true)
+  }
+
+  // Escape button on the encounter banner — sends the escape keywords immediately
+  // (matches the prompt's 陷阱锁定规则 trigger words: 逃脱/挣脱/突破束缚/逃离).
+  const attemptEscape = () => {
+    if (loading || !character.encounter) return
+    sendMessage(`${character.name}拼尽全力挣扎，奋力挣脱束缚、突破当前的${character.encounter.name}，逃脱、逃离这个遭遇！`)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -511,6 +480,40 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
           onClose={() => setShowStatusPicker(false)}
         />
       )}
+      {/* Current encounter banner (locked into a trap/monster) */}
+      {character.encounter && (
+        <div className="px-4 py-2.5 border-b border-rose-500/40 bg-gradient-to-r from-rose-950/60 to-purple-950/40">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 flex-shrink-0 text-rose-400 animate-pulse" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] uppercase tracking-widest text-rose-400/70">
+                  {character.encounter.kind === 'monster' ? '遭遇怪物' : '陷入陷阱'}
+                </span>
+                <span className="text-sm font-bold text-rose-200">{character.encounter.name}</span>
+                <span className="text-[10px] text-rose-300/80 bg-rose-500/15 px-1.5 py-0.5 rounded-full">
+                  束缚 Lv{character.encounter.restraint}
+                </span>
+              </div>
+              {character.encounter.summary && (
+                <p className="text-[11px] text-rose-100/70 leading-snug mt-0.5 truncate">
+                  {character.encounter.summary}
+                </p>
+              )}
+            </div>
+            <button
+              onClick={attemptEscape}
+              disabled={loading}
+              title="全力挣脱当前束缚"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-400/50 bg-rose-500/15 text-rose-200 text-xs font-bold hover:bg-rose-500/25 hover:border-rose-300 transition-all disabled:opacity-40 flex-shrink-0"
+            >
+              <Unlock className="w-3.5 h-3.5" />
+              奋力挣脱
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Summary indicator */}
       {(summary || summarising) && (
         <div className="px-4 py-2 border-b border-border flex items-center gap-2 text-xs text-muted-foreground bg-secondary/30">

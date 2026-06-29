@@ -5,7 +5,7 @@ import { Character, BodyPart, RACE_INFO } from '@/lib/types'
 import {
   Heart, RotateCcw,
   Flame, Sparkles, ChevronDown, ChevronUp,
-  AlertTriangle,
+  AlertTriangle, Layers,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -97,7 +97,13 @@ export function CharacterCard({ character, onReset }: CharacterCardProps) {
                 Lv.{character.level}
               </span>
             </div>
-            <p className="text-xs text-muted-foreground">{raceInfo.label}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted-foreground">{raceInfo.label}</p>
+              <span className="flex items-center gap-1 text-[10px] text-amber-300/90 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                <Layers className="w-3 h-3" />
+                第 {character.floor ?? 1} 层
+              </span>
+            </div>
           </div>
 
           <button

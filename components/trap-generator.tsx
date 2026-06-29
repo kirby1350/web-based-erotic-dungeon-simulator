@@ -5,55 +5,13 @@ import { Loader2, RefreshCw, Check, X, Zap, Shuffle } from 'lucide-react'
 import { Character, PRESET_TRAPS } from '@/lib/types'
 import { streamChatDeltas } from '@/lib/sse'
 import { cn } from '@/lib/utils'
+import { buildRandomTrapPrompt } from '@/lib/prompts'
 
 interface TrapGeneratorProps {
   character: Character
   settings: { chatModel: string; chatApiKey: string; grokApiKey?: string }
   onConfirm: (text: string) => void
   onClose: () => void
-}
-
-function buildRandomTrapPrompt(character: Character, hint?: string, currentLocation = '未知区域'): string {
-  const bd = character.bodyDevelopment ?? { breast: 0, clitoris: 0, vagina: 0, anus: 0 }
-  const se = character.statusEffects ?? []
-  const typeRule = hint
-    ? `1. 本次必须生成以下指定类型的陷阱（根据玩家当前状态自由发挥细节）：
-   ${hint}`
-    : `1. 随机选择一种陷阱类型（不可重复使用最近用过的），类型包括但不限于：
-   - 触手系（普通/异形/寄生）
-   - 粘液/史莱姆系
-   - 催情植物/花粉/香气
-   - 魔法拘束/淫纹/幻觉
-   - 怪物巢穴（触手怪、史莱姆群、触手犬、半兽人等）
-   - 机械/古代遗迹拘束装置
-   - 催眠/幻觉镜子/魅魔领域
-   - 寄生虫/卵注入系
-   - 其他你能想到的重口色情陷阱`
-  return `你现在是「极致色情随机陷阱生成器」，必须生成一个全新、高度色情的地下城陷阱事件。
-
-当前玩家：${character.name}（${character.race}）
-当前状态：快感度 ${character.pleasure}/100，欲望值 ${character.desire}/100
-身体开发度：胸部Lv${bd.breast ?? 0}、阴蒂Lv${bd.clitoris ?? 0}、阴道Lv${bd.vagina ?? 0}、肛门Lv${bd.anus ?? 0}
-当前异常状态：${se.map((s) => s.title).join('、') || '无'}
-当前位置：${currentLocation}
-
-【生成要求】
-${typeRule}
-
-2. 生成内容必须包含：
-   - 陷阱名称（带色情味）
-   - 详细触发过程（200字以上，极度色情，包含感官描写）
-   - 陷入后立即发生的强制色情效果
-   - 对玩家状态的影响
-   - 严格输出以下格式：
-
-【陷阱名称】xxx
-【触发描写】
-（第三人称详细叙述）
-
-【当前效果】
-（说明玩家将会被如何侵犯、身体反应）
-`
 }
 
 export function TrapGenerator({ character, settings, onConfirm, onClose }: TrapGeneratorProps) {
@@ -70,7 +28,7 @@ export function TrapGenerator({ character, settings, onConfirm, onClose }: TrapG
     setError('')
     setResult('')
 
-    const prompt = buildRandomTrapPrompt(character, hint)
+    const prompt = buildRandomTrapPrompt(character, hint, `地下城第 ${character.floor ?? 1} 层`)
 
     try {
       const res = await fetch('/api/chat', {
@@ -103,24 +61,24 @@ export function TrapGenerator({ character, settings, onConfirm, onClose }: TrapG
     }
   }, [character, settings])
 
-  // Extract displayable content (strip [SCENE] and [STATS])
+  // Extract displayable content (strip [SCENE], [STATS] and [DESC] blocks)
   function cleanForDisplay(text: string): string {
     let out = text.replace(/\[SCENE:[^\]]*\]/gi, '')
-    const marker = out.indexOf('[STATS:')
-    if (marker !== -1) {
-      const braceStart = out.indexOf('{', marker)
-      if (braceStart !== -1) {
-        let depth = 0
-        for (let i = braceStart; i < out.length; i++) {
-          if (out[i] === '{') depth++
-          else if (out[i] === '}') {
-            depth--
-            if (depth === 0) {
-              const closeTag = out.indexOf(']', i)
-              const end = closeTag !== -1 ? closeTag + 1 : i + 1
-              out = out.slice(0, marker) + out.slice(end)
-              break
-            }
+    for (const marker of ['[STATS:', '[DESC:']) {
+      const start = out.indexOf(marker)
+      if (start === -1) continue
+      const braceStart = out.indexOf('{', start)
+      if (braceStart === -1) continue
+      let depth = 0
+      for (let i = braceStart; i < out.length; i++) {
+        if (out[i] === '{') depth++
+        else if (out[i] === '}') {
+          depth--
+          if (depth === 0) {
+            const closeTag = out.indexOf(']', i)
+            const end = closeTag !== -1 ? closeTag + 1 : i + 1
+            out = out.slice(0, start) + out.slice(end)
+            break
           }
         }
       }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { IMAGE_NEGATIVE_PROMPT } from '@/lib/prompts'
 
 function randomRequestId(): string {
   return Array.from({ length: 18 }, () => Math.floor(Math.random() * 10)).join('')
@@ -27,11 +28,7 @@ export async function POST(req: NextRequest) {
             width,
             height,
             prompts: [{ text: prompts }],
-            negativePrompts: [
-              {
-                text: 'lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry',
-              },
-            ],
+            negativePrompts: [{ text: IMAGE_NEGATIVE_PROMPT }],
             sdModel: modelId,
             sdVae: 'ae.sft',
             sampler: 'Euler a',

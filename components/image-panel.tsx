@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { Image as ImageIcon, Loader2, RefreshCw, Wand2, ChevronDown, ChevronUp } from 'lucide-react'
 import { AppSettings, IMAGE_MODELS, IMAGE_STYLES, TENSORART_MODELS, Character } from '@/lib/types'
+import { DEFAULT_SCENE_PROMPT } from '@/lib/prompts'
 
 interface ImagePanelProps {
   settings: AppSettings
@@ -142,7 +143,7 @@ export function ImagePanel({ settings, character, pendingScene, onSceneHandled }
   }, [pendingScene, onSceneHandled, generateImage])
 
   const handleCustomGenerate = async () => {
-    const rawPrompt = customPrompt.trim() || 'dungeon entrance, mysterious stone corridor, torchlight, dark fantasy'
+    const rawPrompt = customPrompt.trim() || DEFAULT_SCENE_PROMPT
     await generateImage(rawPrompt)
   }
 

@@ -25,6 +25,19 @@ export interface StatusEffect {
   description: string
 }
 
+// Current trap/monster the character is locked into. null = free to explore.
+export interface Encounter {
+  // stable kebab/underscore id, reused across turns while the encounter persists
+  id: string
+  // short display name, e.g. 触手深渊 / 半兽人巢穴
+  name: string
+  kind: 'trap' | 'monster'
+  // one-line description of the current restraint/threat
+  summary: string
+  // restraint intensity 0-3 (0 = barely held, 3 = completely bound)
+  restraint: number
+}
+
 export interface Character {
   name: string
   race: Race
@@ -40,6 +53,10 @@ export interface Character {
   desire: number
   bodyDevelopment: BodyDevelopment
   statusEffects: StatusEffect[]
+  // current dungeon floor (depth); starts at 1
+  floor?: number
+  // current trap/monster encounter, or null when free
+  encounter?: Encounter | null
 }
 
 export interface ChatMessage {
