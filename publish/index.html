@@ -29,24 +29,24 @@
           <div id="race-list" class="race-grid"></div>
           <div id="race-desc" class="race-desc"></div>
 
-          <label class="field-label">体格数据（选填）</label>
+          <label class="field-label">三围（厘米，选填）</label>
           <div class="measure-grid">
-            <div><span class="sub-label">数值一</span><input id="m-bust" class="input center" type="number" min="0" max="300" placeholder="—"></div>
-            <div><span class="sub-label">数值二</span><input id="m-waist" class="input center" type="number" min="0" max="300" placeholder="—"></div>
-            <div><span class="sub-label">数值三</span><input id="m-hip" class="input center" type="number" min="0" max="300" placeholder="—"></div>
+            <div><span class="sub-label">胸围</span><input id="m-bust" class="input center" type="number" min="30" max="200" placeholder="如 88"></div>
+            <div><span class="sub-label">腰围</span><input id="m-waist" class="input center" type="number" min="30" max="200" placeholder="如 60"></div>
+            <div><span class="sub-label">臀围</span><input id="m-hip" class="input center" type="number" min="30" max="200" placeholder="如 90"></div>
           </div>
 
           <label class="field-label" for="backstory-input">人物设定（选填）</label>
           <textarea id="backstory-input" class="input" rows="3" placeholder="背景故事、性格、过往经历…"></textarea>
 
-          <label class="field-label" for="costume-input">装束设定（选填）</label>
-          <textarea id="costume-input" class="input" rows="3" placeholder="服装、外貌、随身装备…"></textarea>
+          <label class="field-label" for="costume-input">服装设定（选填）</label>
+          <textarea id="costume-input" class="input" rows="3" placeholder="服装、外貌、装备道具…"></textarea>
 
           <label class="field-label" for="other-input">其他设定（选填）</label>
           <textarea id="other-input" class="input" rows="3" placeholder="特殊能力、信念、禁忌…"></textarea>
 
           <label class="field-label" for="tags-input">画像标签（选填 / 英文）</label>
-          <textarea id="tags-input" class="input" rows="2" placeholder="1girl, knight, silver hair, dark fantasy…"></textarea>
+          <textarea id="tags-input" class="input" rows="2" placeholder="角色固定外观标签，会附加到每次生图保持一致，例：1girl, long hair, large breasts…"></textarea>
 
           <button id="create-btn" class="btn primary block" disabled>踏入地下城</button>
         </div>

@@ -8,7 +8,7 @@ window.Dungeon = window.Dungeon || {};
 
   var state = {
     character: null, messages: [], summary: '', latestOptions: [], scene: '',
-    loading: false, reqId: 0, model: AI.FALLBACK_MODEL, draftRace: 'human',
+    loading: false, reqId: 0, model: AI.FALLBACK_MODEL, draftRace: 'human', draftAvatar: null,
   };
   D.state = state;
 
@@ -27,6 +27,7 @@ window.Dungeon = window.Dungeon || {};
   function applyPreset(p) {
     $('name-input').value = p.name;
     state.draftRace = p.race;
+    state.draftAvatar = p.avatarUrl || null;
     $('m-bust').value = p.measurements.bust || '';
     $('m-waist').value = p.measurements.waist || '';
     $('m-hip').value = p.measurements.hip || '';
@@ -39,7 +40,6 @@ window.Dungeon = window.Dungeon || {};
   function createCharacter() {
     var name = $('name-input').value.trim();
     if (!name) return;
-    var maxHp = state.draftRace === 'tauren' ? 120 : 100;
     state.character = {
       name: name, race: state.draftRace,
       measurements: { bust: $('m-bust').value.trim(), waist: $('m-waist').value.trim(), hip: $('m-hip').value.trim() },
@@ -47,10 +47,11 @@ window.Dungeon = window.Dungeon || {};
       costumeDescription: $('costume-input').value.trim(),
       otherDescription: $('other-input').value.trim(),
       danbooruTags: $('tags-input').value.trim(),
-      avatarUrl: null,
-      hp: maxHp, maxHp: maxHp, resolve: 80, corruption: 0,
+      avatarUrl: state.draftAvatar || null,
+      hp: 100, maxHp: 100, pleasure: 0, desire: 0,
+      bodyDevelopment: { breast: 0, clitoris: 0, urethra: 0, vagina: 0, anus: 0 },
       floor: 1, floorThemes: D.data.rollFloorThemes(), encounter: null,
-      statusEffects: [], desc: {},
+      statusEffects: [],
     };
     state.messages = []; state.summary = ''; state.latestOptions = []; state.scene = '';
     persist();
@@ -111,14 +112,14 @@ window.Dungeon = window.Dungeon || {};
   function dispel(effect) {
     if (state.loading) return;
     sendAction(state.character.name + '咬紧牙关，凝聚意志试图驱散身上的「' + effect.title +
-      '」状态（' + effect.description + '）。请依据当前意志、腐蚀与处境判定能否解除：成功则在 [STATS] 的 statusEffects 中移除它，失败则保留甚至加剧。');
+      '」状态（' + effect.description + '）。请依据当前快感、欲望与身体开发度判定能否解除（越契合当前处境越难解，欲望或快感过高时几乎无法靠意志摆脱）：成功则在 [STATS] 的 statusEffects 中移除它，失败则保留甚至加剧并触发更强烈的色情事件。');
   }
   function resetGame() {
     if (!window.confirm('确定要重置吗？当前存档将被清除。')) return;
     state.reqId++; state.loading = false;
     S.clearSave();
     state.character = null; state.messages = []; state.summary = '';
-    state.latestOptions = []; state.scene = ''; state.draftRace = 'human';
+    state.latestOptions = []; state.scene = ''; state.draftRace = 'human'; state.draftAvatar = null;
     ['name-input', 'm-bust', 'm-waist', 'm-hip', 'backstory-input', 'costume-input', 'other-input', 'tags-input']
       .forEach(function (idv) { $(idv).value = ''; });
     refreshCreator('');

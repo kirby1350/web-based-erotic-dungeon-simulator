@@ -16,13 +16,15 @@ window.Dungeon = window.Dungeon || {};
     return m.content;
   }
 
+  var PARTS = ['breast', 'clitoris', 'urethra', 'vagina', 'anus'];
+
   function applyMarkers(full) {
     var c = D.state.character;
     var stats = P.extractMarkerJson(full, 'STATS');
     if (stats) {
       if (typeof stats.hp === 'number') c.hp = clampInt(stats.hp, 0, c.maxHp);
-      if (typeof stats.resolve === 'number') c.resolve = clampInt(stats.resolve, 0, 100);
-      if (typeof stats.corruption === 'number') c.corruption = clampInt(stats.corruption, 0, 100);
+      if (typeof stats.pleasure === 'number') c.pleasure = clampInt(stats.pleasure, 0, 100);
+      if (typeof stats.desire === 'number') c.desire = clampInt(stats.desire, 0, 100);
       if (typeof stats.floor === 'number' && stats.floor >= 1) c.floor = Math.floor(stats.floor);
       if ('encounter' in stats) {
         var e = stats.encounter;
@@ -34,6 +36,26 @@ window.Dungeon = window.Dungeon || {};
             restraint: typeof e.restraint === 'number' ? clampInt(e.restraint, 0, 3) : 0,
           };
         } else { c.encounter = null; }
+      }
+      if (stats.measurements && typeof stats.measurements === 'object') {
+        var pm = c.measurements || { bust: '', waist: '', hip: '' };
+        ['bust', 'waist', 'hip'].forEach(function (k) {
+          if (stats.measurements[k] != null) pm[k] = String(stats.measurements[k]).replace(/[^0-9.]/g, '');
+        });
+        c.measurements = pm;
+      }
+      if (stats.bodyDevelopment && typeof stats.bodyDevelopment === 'object') {
+        var bd = c.bodyDevelopment || { breast: 0, clitoris: 0, urethra: 0, vagina: 0, anus: 0 };
+        PARTS.forEach(function (k) {
+          if (typeof stats.bodyDevelopment[k] === 'number') bd[k] = clampInt(stats.bodyDevelopment[k], 0, 5);
+        });
+        if (stats.bodyDevelopment.exp && typeof stats.bodyDevelopment.exp === 'object') {
+          bd.exp = bd.exp || {};
+          PARTS.forEach(function (k) {
+            if (typeof stats.bodyDevelopment.exp[k] === 'number') bd.exp[k] = clampInt(stats.bodyDevelopment.exp[k], 0, 100);
+          });
+        }
+        c.bodyDevelopment = bd;
       }
       if (Array.isArray(stats.statusEffects)) {
         c.statusEffects = stats.statusEffects
@@ -50,10 +72,12 @@ window.Dungeon = window.Dungeon || {};
     }
     var desc = P.extractMarkerJson(full, 'DESC');
     if (desc) {
-      c.desc = c.desc || {};
-      ['mind', 'body', 'gear'].forEach(function (k) {
-        if (typeof desc[k] === 'string' && desc[k].length > 0) c.desc[k] = desc[k];
+      var bd2 = c.bodyDevelopment || {};
+      bd2.descriptions = bd2.descriptions || {};
+      PARTS.forEach(function (k) {
+        if (typeof desc[k] === 'string' && desc[k].length > 0) bd2.descriptions[k] = desc[k];
       });
+      c.bodyDevelopment = bd2;
     }
   }
 

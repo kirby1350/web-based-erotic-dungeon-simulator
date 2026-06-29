@@ -21,7 +21,10 @@ window.Dungeon = window.Dungeon || {};
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'preset-btn' + (p.name === activeName ? ' active' : '');
-      b.innerHTML = '<span class="preset-avatar">' + escapeHtml(p.icon || '?') + '</span>' +
+      var avatar = p.avatarUrl
+        ? '<img class="preset-avatar" src="' + escapeHtml(p.avatarUrl) + '" alt="" loading="lazy">'
+        : '<span class="preset-avatar">' + escapeHtml(p.icon || '?') + '</span>';
+      b.innerHTML = avatar +
         '<span class="pname">' + escapeHtml(p.name) + '</span>' +
         '<span class="muted">' + escapeHtml(D.data.RACE_INFO[p.race].label) + '</span>';
       b.addEventListener('click', function () { onPick(p); });
@@ -56,12 +59,15 @@ window.Dungeon = window.Dungeon || {};
   function renderStats(c) {
     var floor = c.floor || 1;
     var theme = D.data.getFloorTheme(c.floorThemes, floor);
+    var bd = c.bodyDevelopment || { breast: 0, clitoris: 0, urethra: 0, vagina: 0, anus: 0 };
+    var devLine = '开发度 胸' + bd.breast + ' 蒂' + bd.clitoris + ' 尿' + bd.urethra + ' 阴' + bd.vagina + ' 肛' + bd.anus;
     $('stat-bar').innerHTML =
       bar('生命', c.hp, c.maxHp, 'var(--good)') +
-      bar('意志', c.resolve, 100, 'var(--purple)') +
-      bar('腐蚀', c.corruption, 100, 'var(--rose)') +
+      bar('快感', c.pleasure, 100, 'var(--rose)') +
+      bar('欲望', c.desire, 100, 'var(--purple)') +
       '<div class="stat chip"><span class="chip-box">第 ' + floor + '/' + D.data.TARGET_FLOOR +
-      ' 层 · ' + escapeHtml(theme.name) + '</span></div>';
+      ' 层 · ' + escapeHtml(theme.name) + '</span></div>' +
+      '<div class="stat chip"><span class="chip-box">' + escapeHtml(devLine) + '</span></div>';
   }
 
   function renderEncounter(c) {
