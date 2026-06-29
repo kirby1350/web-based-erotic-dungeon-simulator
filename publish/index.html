@@ -13,7 +13,7 @@
       <div class="creator-inner">
         <header class="creator-head">
           <h1 class="gold">地下城探险</h1>
-          <p class="muted">创建你的冒险者，深入十层黑暗地城</p>
+          <p class="muted">创建你的冒险者，深入十层情欲地城</p>
         </header>
 
         <div class="card">
@@ -22,11 +22,16 @@
 
           <hr class="divider">
 
-          <label class="field-label" for="name-input">角色名称</label>
-          <input id="name-input" class="input" type="text" placeholder="输入你的角色名…" maxlength="24">
-
-          <label class="field-label">选择种族</label>
-          <div id="race-list" class="race-grid"></div>
+          <div class="creator-top">
+            <div id="avatar-box" class="avatar-box">上传头像</div>
+            <input id="avatar-file" type="file" accept="image/*" class="hidden">
+            <div class="creator-top-fields">
+              <label class="field-label" for="name-input">角色名称</label>
+              <input id="name-input" class="input" type="text" placeholder="输入你的角色名…" maxlength="24">
+              <label class="field-label">选择种族</label>
+              <div id="race-list" class="race-grid"></div>
+            </div>
+          </div>
           <div id="race-desc" class="race-desc"></div>
 
           <label class="field-label">三围（厘米，选填）</label>
@@ -43,7 +48,7 @@
           <textarea id="costume-input" class="input" rows="3" placeholder="服装、外貌、装备道具…"></textarea>
 
           <label class="field-label" for="other-input">其他设定（选填）</label>
-          <textarea id="other-input" class="input" rows="3" placeholder="特殊能力、信念、禁忌…"></textarea>
+          <textarea id="other-input" class="input" rows="3" placeholder="特殊能力、癖好、禁忌…"></textarea>
 
           <label class="field-label" for="tags-input">画像标签（选填 / 英文）</label>
           <textarea id="tags-input" class="input" rows="2" placeholder="角色固定外观标签，会附加到每次生图保持一致，例：1girl, long hair, large breasts…"></textarea>
@@ -58,38 +63,65 @@
   <section id="game-view" class="view hidden">
     <header class="topbar">
       <h1 class="gold small">地下城探险</h1>
-      <div class="top-right">
-        <span id="char-name" class="muted"></span>
-        <button id="reset-btn" class="btn ghost tiny">重置</button>
-      </div>
+      <button id="settings-btn" class="btn ghost tiny">设置</button>
     </header>
 
-    <div id="stat-bar" class="stat-bar"></div>
-    <div id="encounter-bar" class="encounter-bar hidden"></div>
-    <div id="status-bar" class="status-effects hidden"></div>
+    <div class="tabs">
+      <button id="tab-chat" class="tab active">冒险日志</button>
+      <button id="tab-image" class="tab">场景插图</button>
+    </div>
 
-    <div id="messages" class="messages scroll-area"></div>
+    <div class="game-main">
+      <!-- Left: character + chat -->
+      <div id="col-chat" class="col col-chat">
+        <div id="char-card" class="char-card"></div>
+        <div id="stat-bar" class="stat-bar"></div>
+        <div id="encounter-bar" class="encounter-bar hidden"></div>
+        <div id="status-bar" class="status-effects hidden"></div>
+        <div id="summary-bar" class="summary-bar hidden"></div>
 
-    <div id="scene-box" class="scene-box hidden"></div>
-    <div id="error-box" class="error-box hidden"></div>
+        <div id="messages" class="messages scroll-area"></div>
 
-    <div id="options" class="options hidden"></div>
+        <div id="scene-box" class="scene-box hidden"></div>
+        <div id="error-box" class="error-box hidden"></div>
+        <div id="options" class="options hidden"></div>
 
-    <div class="composer">
-      <textarea id="action-input" class="input" rows="2" placeholder="输入你的行动…"></textarea>
-      <div class="composer-btns">
-        <button id="send-btn" class="btn primary">行动</button>
-        <button id="start-btn" class="btn primary hidden">开始探索</button>
+        <div class="composer">
+          <div class="composer-tools">
+            <button id="trap-btn" class="btn ghost tiny" title="随机陷阱生成器">陷阱</button>
+            <button id="status-btn" class="btn ghost tiny" title="异常状态管理">状态</button>
+          </div>
+          <textarea id="action-input" class="input" rows="2" placeholder="输入你的行动…"></textarea>
+          <div class="composer-btns">
+            <button id="send-btn" class="btn primary">行动</button>
+            <button id="start-btn" class="btn primary hidden">开始探索</button>
+            <button id="retry-btn" class="btn ghost tiny hidden" title="重试上一条">重试</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: image -->
+      <div id="col-image" class="col col-image tab-hidden">
+        <div id="image-panel" class="image-panel"></div>
       </div>
     </div>
+
+    <div id="modal-root" class="modal-root hidden"></div>
   </section>
 
   <script src="./data.js"></script>
+  <script src="./config.js"></script>
   <script src="./parser.js"></script>
   <script src="./storage.js"></script>
   <script src="./prompts.js"></script>
   <script src="./ai.js"></script>
+  <script src="./draw.js"></script>
   <script src="./render.js"></script>
+  <script src="./card.js"></script>
+  <script src="./image.js"></script>
+  <script src="./settings.js"></script>
+  <script src="./tools.js"></script>
+  <script src="./creator.js"></script>
   <script src="./turn.js"></script>
   <script src="./app.js"></script>
 </body>

@@ -24,7 +24,8 @@ window.Dungeon = window.Dungeon || {};
       '**特殊淫语（口腔专用）**：仅在口交、深喉、舌吻、吞精等口腔行为时使用，拟声词库：啾、噜、咕唧、噗、呕、滋、啾噜、噗噜、呕噗、咕啾。';
   }
 
-  function buildSystemPrompt(c, summary) {
+  function buildSystemPrompt(c, summary, proseStyle) {
+    var proseBlock = (D.config.PROSE_STYLE_PROMPTS[proseStyle] || '');
     var m = c.measurements || {};
     var measurementLine = (m.bust || m.waist || m.hip)
       ? '- 三围：胸围 ' + (m.bust || '?') + ' cm / 腰围 ' + (m.waist || '?') + ' cm / 臀围 ' + (m.hip || '?') + ' cm'
@@ -67,6 +68,7 @@ window.Dungeon = window.Dungeon || {};
       '1. 严禁油腻套话：不知过了多久、就在这时、空气仿佛凝固、邪魅一笑、磁性的嗓音、深邃的眸子、像断了线的木偶、像一滩烂泥、像受惊的小鹿、前所未有的、灭顶的、理智的弦断裂、如潮水般袭来——一律改写为具体身体细节。\n' +
       '2. 高潮、绝顶、瘫软、坏掉等画面禁止套用现成比喻，必须用具体身体动作/收缩/痉挛/体液或该角色专属意象来写；同一喻体不得重复。\n' +
       '3. 可保留重口行话（肉便器、坏掉、ahegao、子宫凸起、母猪/肉壶等），但靠具体细节而非反复堆同一标签制造冲击。\n' +
+      (proseBlock ? '\n' + proseBlock + '\n' : '') +
       '\n【陷阱锁定规则（最严格执行）】\n' +
       '1. 一旦' + c.name + '陷入任何陷阱（被触手缠绕、被怪物捕获、被束缚、被魔法控制等），除非玩家**明确输入**“逃脱/挣脱/离开陷阱/突破束缚/逃离”等关键词，否则**绝对无法逃离**。\n' +
       '2. 所有行动选项必须限制在陷阱内（抵抗/享受/堕落），即使判定成功也只能减轻束缚程度，不能完全逃脱。\n' +
@@ -106,10 +108,32 @@ window.Dungeon = window.Dungeon || {};
   var SUMMARY_PROMPT =
     '请将以下地下城冒险对话提炼为 300 字内的第三人称摘要，必须记录关键事件与场景、战斗与陷阱结果、重要选择，以及角色延续性状态（身体开发进度、当前异常状态、是否仍困在陷阱中）。直接输出摘要，不加标题。\n\n';
 
+  // Random trap generator prompt (folded into a single user message).
+  function buildRandomTrapPrompt(c, hint, location, proseStyle) {
+    var bd = c.bodyDevelopment || { breast: 0, clitoris: 0, vagina: 0, anus: 0 };
+    var se = c.statusEffects || [];
+    var proseBlock = (D.config.PROSE_STYLE_PROMPTS[proseStyle] || '');
+    var typeRule = hint
+      ? '1. 本次必须生成以下指定类型的陷阱（根据玩家当前状态自由发挥细节）：\n   ' + hint
+      : '1. 随机选择一种陷阱类型（不可重复最近用过的）：触手系/粘液史莱姆/催情植物花粉/魔法拘束淫纹幻觉/怪物巢穴/机械遗迹拘束/催眠魅魔/寄生产卵 等重口色情陷阱。';
+    return '你现在是「极致色情随机陷阱生成器」，必须生成一个全新、高度色情的地下城陷阱事件。语言风格与地下城DM一致：极度淫荡、感官爆炸、尺度无上限。\n\n' +
+      '当前玩家：' + c.name + '（' + raceLabel(c.race) + '）\n' +
+      '当前状态：快感度 ' + c.pleasure + '/100，欲望值 ' + c.desire + '/100\n' +
+      '身体开发度：胸部Lv' + (bd.breast || 0) + '、阴蒂Lv' + (bd.clitoris || 0) + '、阴道Lv' + (bd.vagina || 0) + '、肛门Lv' + (bd.anus || 0) + '\n' +
+      '当前异常状态：' + (se.map(function (s) { return s.title; }).join('、') || '无') + '\n' +
+      '当前位置：' + (location || '未知区域') + '\n\n' +
+      '【文风禁令】禁用 AI 套话（不知过了多久/就在这时/空气仿佛凝固/邪魅一笑/磁性的嗓音/深邃的眸子/像断了线的木偶/前所未有的/如潮水般袭来），一律改写为具体身体细节。' +
+      (proseBlock ? '\n' + proseBlock : '') + '\n\n' +
+      '【生成要求】\n' + typeRule + '\n' +
+      '2. 生成内容必须包含：陷阱名称（带色情味）、详细触发过程（200字以上、极度色情、含感官描写）、陷入后立即发生的强制色情效果、对玩家状态的影响。严格按以下格式输出：\n\n' +
+      '【陷阱名称】xxx\n【触发描写】\n（第三人称详细叙述）\n\n【当前效果】\n（说明玩家将被如何侵犯、身体反应）';
+  }
+
   D.prompts = {
     raceLabel: raceLabel,
     buildSystemPrompt: buildSystemPrompt,
     buildDmPrompt: buildSystemPrompt,
+    buildRandomTrapPrompt: buildRandomTrapPrompt,
     START_INSTRUCTION: START_INSTRUCTION,
     SUMMARY_PROMPT: SUMMARY_PROMPT,
   };

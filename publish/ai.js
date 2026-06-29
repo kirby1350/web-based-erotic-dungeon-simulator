@@ -1,11 +1,13 @@
 // Platform AI wrapper around window.dzmm.completions / dzmm.models.
+// NOTE: dzmm.completions' callback receives the CUMULATIVE fullText so far
+// (not a delta) and a `done` flag — we derive deltas from it.
 window.Dungeon = window.Dungeon || {};
 (function (D) {
   'use strict';
 
   var FALLBACK_MODEL = 'nalang-turbo-0826';
+  var MAX_TOKENS = 4096;
 
-  // Returns { models: [...], defaultModel } — never rejects.
   async function listModels() {
     try {
       if (window.dzmm && window.dzmm.models && window.dzmm.models.list) {
@@ -20,32 +22,49 @@ window.Dungeon = window.Dungeon || {};
     return { models: [], defaultModel: FALLBACK_MODEL };
   }
 
-  // Stream a DM completion. `messages` is the full role:'user'/'assistant' array
-  // (the DM briefing is already folded into the first user message by the caller).
-  // onDelta(chunk, done, buffer) fires per streamed chunk. Resolves to the full text.
-  async function askDm(opts) {
-    var model = opts.model;
-    var messages = opts.messages;
-    var onDelta = opts.onDelta;
-    var buffer = '';
-
+  // Stream a completion. onDelta(delta, done, fullText) fires per chunk.
+  // Resolves to the full text. `messages` already has the DM briefing folded
+  // into the first user message by the caller.
+  async function complete(opts) {
     if (!window.dzmm || !window.dzmm.completions) {
       throw new Error('平台 AI 接口 (window.dzmm.completions) 不可用');
     }
-
+    var prev = '';
     await window.dzmm.completions(
-      { model: model, messages: messages, maxTokens: 2000 },
-      function (chunk, done) {
-        if (chunk) buffer += chunk;
-        if (onDelta) onDelta(chunk || '', done, buffer);
+      { model: opts.model, messages: opts.messages, maxTokens: opts.maxTokens || MAX_TOKENS },
+      function (fullText, done) {
+        fullText = fullText || '';
+        var delta = fullText.slice(prev.length);
+        prev = fullText;
+        if (opts.onDelta) opts.onDelta(delta, !!done, prev);
       }
     );
-    return buffer;
+    return prev;
+  }
+
+  // alias kept for callers that read it as "ask the DM"
+  function askDm(opts) { return complete(opts); }
+
+  // Summarise a conversation into a rolling summary string (non-streaming use).
+  async function summarize(model, conversation) {
+    try {
+      var text = await complete({
+        model: model,
+        messages: [{ role: 'user', content: D.prompts.SUMMARY_PROMPT + conversation }],
+        maxTokens: 1024,
+      });
+      return (text || '').trim();
+    } catch (e) {
+      console.error('摘要生成失败:', e && e.code, e && e.message);
+      return '';
+    }
   }
 
   D.ai = {
     FALLBACK_MODEL: FALLBACK_MODEL,
     listModels: listModels,
+    complete: complete,
     askDm: askDm,
+    summarize: summarize,
   };
 })(window.Dungeon);

@@ -89,9 +89,10 @@ window.Dungeon = window.Dungeon || {};
     R.setError('');
     D.ui.setBusy(true);
 
+    var proseStyle = (s.settings && s.settings.proseStyle) || 'standard';
     var hist = s.messages.slice(-24).map(function (m) { return { role: m.role, content: toApi(s, m) }; });
     var apiMessages = [
-      { role: 'user', content: D.prompts.buildDmPrompt(s.character, s.summary || '') },
+      { role: 'user', content: D.prompts.buildDmPrompt(s.character, s.summary || '', proseStyle) },
       { role: 'assistant', content: '（地下城主已就位，等待冒险者的行动。）' },
     ].concat(hist);
 
@@ -113,7 +114,9 @@ window.Dungeon = window.Dungeon || {};
       assistant.content = full;
       applyMarkers(full);
       s.latestOptions = P.parseOptions(full);
-      s.scene = P.parseScene(full);
+      var scene = P.parseScene(full);
+      s.scene = scene;
+      if (scene && D.image && D.image.notifyScene) D.image.notifyScene(D.config.withQualityPrefix(scene));
     } catch (err) {
       console.error('AI 请求失败:', err && err.code, err && err.message, err && err.stack);
       if (id === s.reqId) {
@@ -126,7 +129,40 @@ window.Dungeon = window.Dungeon || {};
         D.ui.setBusy(false);
         D.ui.rerender();
         D.ui.persist();
+        maybeSummarize(s);
       }
+    }
+  }
+
+  var SUMMARY_THRESHOLD = 10; // summarise after this many assistant turns
+  var RECENT_KEEP = 4;        // keep this many recent messages verbatim
+
+  // Roll older history into s.summary so the context stays bounded.
+  async function maybeSummarize(s) {
+    if (s.summarising) return;
+    var assistantCount = s.messages.filter(function (m) { return m.role === 'assistant'; }).length;
+    if (assistantCount === 0 || assistantCount % SUMMARY_THRESHOLD !== 0) return;
+    var older = s.messages.slice(0, s.messages.length - RECENT_KEEP);
+    var removeCount = older.length;
+    if (removeCount <= 0) return;
+
+    s.summarising = true;
+    D.ui.rerender();
+    try {
+      var conversation = older.map(function (m) {
+        return (m.role === 'user' ? '玩家' : '地下城主') + '：' + toApi(s, m);
+      }).join('\n');
+      var newSummary = await AI.summarize(s.model, conversation);
+      if (newSummary) {
+        s.summary = s.summary ? (s.summary + '\n\n' + newSummary) : newSummary;
+        s.messages = s.messages.slice(removeCount); // drop exactly what we summarised
+        D.ui.persist();
+      }
+    } catch (e) {
+      console.error('摘要失败:', e && e.message);
+    } finally {
+      s.summarising = false;
+      D.ui.rerender();
     }
   }
 

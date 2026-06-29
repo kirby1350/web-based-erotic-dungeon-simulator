@@ -1,5 +1,6 @@
-// UI state, creator, event wiring, persistence, boot. The AI turn loop lives in
-// turn.js and shares state via D.state / view helpers via D.ui.
+// Orchestrator: shared state, game view, persistence, actions, layout, boot.
+// Creation lives in creator.js; the AI turn loop in turn.js; panels/modals in
+// card.js / image.js / settings.js / tools.js.
 window.Dungeon = window.Dungeon || {};
 (function (D) {
   'use strict';
@@ -8,7 +9,9 @@ window.Dungeon = window.Dungeon || {};
 
   var state = {
     character: null, messages: [], summary: '', latestOptions: [], scene: '',
-    loading: false, reqId: 0, model: AI.FALLBACK_MODEL, draftRace: 'human', draftAvatar: null,
+    loading: false, summarising: false, reqId: 0,
+    model: AI.FALLBACK_MODEL, models: [], settings: S.defaultSettings(),
+    draftRace: 'human', draftAvatar: null, lastUserInput: '', tab: 'chat',
   };
   D.state = state;
 
@@ -18,72 +21,35 @@ window.Dungeon = window.Dungeon || {};
     $('game-view').className = 'view' + (view === 'game' ? '' : ' hidden');
   }
 
-  // ---------- Creator ----------
-  function refreshCreator(activeName) {
-    R.renderPresets(activeName || '', applyPreset);
-    R.renderRaces(state.draftRace, function (r) { state.draftRace = r; refreshCreator(activeName); });
-    $('create-btn').disabled = !$('name-input').value.trim();
-  }
-  function applyPreset(p) {
-    $('name-input').value = p.name;
-    state.draftRace = p.race;
-    state.draftAvatar = p.avatarUrl || null;
-    $('m-bust').value = p.measurements.bust || '';
-    $('m-waist').value = p.measurements.waist || '';
-    $('m-hip').value = p.measurements.hip || '';
-    $('backstory-input').value = p.backstory || '';
-    $('costume-input').value = p.costumeDescription || '';
-    $('other-input').value = p.otherDescription || '';
-    $('tags-input').value = p.danbooruTags || '';
-    refreshCreator(p.name);
-  }
-  function createCharacter() {
-    var name = $('name-input').value.trim();
-    if (!name) return;
-    state.character = {
-      name: name, race: state.draftRace,
-      measurements: { bust: $('m-bust').value.trim(), waist: $('m-waist').value.trim(), hip: $('m-hip').value.trim() },
-      backstory: $('backstory-input').value.trim(),
-      costumeDescription: $('costume-input').value.trim(),
-      otherDescription: $('other-input').value.trim(),
-      danbooruTags: $('tags-input').value.trim(),
-      avatarUrl: state.draftAvatar || null,
-      hp: 100, maxHp: 100, pleasure: 0, desire: 0,
-      bodyDevelopment: { breast: 0, clitoris: 0, urethra: 0, vagina: 0, anus: 0 },
-      floor: 1, floorThemes: D.data.rollFloorThemes(), encounter: null,
-      statusEffects: [],
-    };
-    state.messages = []; state.summary = ''; state.latestOptions = []; state.scene = '';
-    persist();
-    enterGame();
-  }
-
-  // ---------- Game view ----------
-  function enterGame() {
+  function enterGame(character, fresh) {
+    if (character) state.character = character;
+    if (fresh) { state.messages = []; state.summary = ''; state.latestOptions = []; state.scene = ''; persist(); }
     show('game');
-    $('char-name').textContent = state.character.name;
     var firstTurn = state.messages.length === 0;
     $('start-btn').className = 'btn primary' + (firstTurn ? '' : ' hidden');
     $('send-btn').className = 'btn primary' + (firstTurn ? ' hidden' : '');
+    D.image.render();
     rerender();
   }
+
   function rerender() {
     var c = state.character;
     if (!c) return;
     R.renderStats(c);
-    R.renderEncounter(c);
+    R.renderEncounter(c, { onEscape: attemptEscape, onSurrender: acceptBroken }, state.loading);
+    R.renderSummaryBar(state.summary, state.summarising);
     R.renderStatusEffects(c, dispel);
     R.renderMessages(state.messages, c.name, state.loading);
     R.renderOptions(state.latestOptions, state.loading, function (i, opt) { sendAction(opt); });
     R.renderScene(state.scene);
-  }
-  function setBusy(busy) {
-    $('send-btn').disabled = busy;
-    $('start-btn').disabled = busy;
-    $('action-input').disabled = busy;
+    D.card.render(c, resetGame);
+    var rt = $('retry-btn'); if (rt) rt.className = 'btn ghost tiny' + ((state.lastUserInput && !state.loading) ? '' : ' hidden');
   }
 
-  // ---------- Persistence ----------
+  function setBusy(busy) {
+    ['send-btn', 'start-btn', 'action-input'].forEach(function (id) { var el = $(id); if (el) el.disabled = busy || state.summarising; });
+  }
+
   function persist() {
     if (!state.character) return;
     S.writeSave({
@@ -96,6 +62,7 @@ window.Dungeon = window.Dungeon || {};
   // ---------- Actions ----------
   function sendAction(text) {
     if (state.loading || !text || !text.trim()) return;
+    state.lastUserInput = text.trim();
     state.messages.push({ role: 'user', content: text.trim() });
     $('action-input').value = '';
     rerender();
@@ -109,57 +76,91 @@ window.Dungeon = window.Dungeon || {};
     rerender();
     D.turn.runTurn();
   }
+  function retry() { if (state.lastUserInput) sendAction(state.lastUserInput); }
   function dispel(effect) {
     if (state.loading) return;
-    sendAction(state.character.name + '咬紧牙关，凝聚意志试图驱散身上的「' + effect.title +
-      '」状态（' + effect.description + '）。请依据当前快感、欲望与身体开发度判定能否解除（越契合当前处境越难解，欲望或快感过高时几乎无法靠意志摆脱）：成功则在 [STATS] 的 statusEffects 中移除它，失败则保留甚至加剧并触发更强烈的色情事件。');
+    sendAction(state.character.name + '咬紧牙关，凝聚意志试图驱散身上的「' + effect.title + '」状态（' + effect.description +
+      '）。请依据当前快感、欲望与身体开发度判定能否解除（越契合处境越难解，欲望或快感过高时几乎无法靠意志摆脱）：成功则在 [STATS] 的 statusEffects 中移除它，失败则保留甚至加剧并触发更强烈的色情事件。');
   }
+  function attemptEscape() {
+    var enc = state.character.encounter;
+    if (state.loading || !enc) return;
+    sendAction(state.character.name + '拼尽全力挣扎，奋力挣脱束缚、突破当前的' + enc.name + '，逃脱、逃离这个遭遇！');
+  }
+  function acceptBroken() {
+    var enc = state.character.encounter;
+    if (state.loading || !enc) return;
+    sendAction(state.character.name + '彻底放弃抵抗，张开身体迎接' + enc.name + '的肆意蹂躏，任由自己被玩弄、榨干到精神彻底崩坏，直到对方玩腻后将这具失神瘫软的躯体随意丢弃。（请详细描写被玩坏丢弃的过程，并在结束后让她脱离当前遭遇）');
+  }
+  function applyStatus(effects) {
+    if (!state.character) return;
+    state.character.statusEffects = effects;
+    persist(); rerender();
+  }
+  function fillInput(text) {
+    var ta = $('action-input'); if (ta) { ta.value = text; ta.focus(); }
+  }
+
+  function switchTab(tab) {
+    state.tab = tab;
+    $('tab-chat').classList.toggle('active', tab === 'chat');
+    $('tab-image').classList.toggle('active', tab === 'image');
+    $('col-chat').classList.toggle('tab-hidden', tab !== 'chat');
+    $('col-image').classList.toggle('tab-hidden', tab !== 'image');
+  }
+
   function resetGame() {
     if (!window.confirm('确定要重置吗？当前存档将被清除。')) return;
     state.reqId++; state.loading = false;
     S.clearSave();
     state.character = null; state.messages = []; state.summary = '';
-    state.latestOptions = []; state.scene = ''; state.draftRace = 'human'; state.draftAvatar = null;
-    ['name-input', 'm-bust', 'm-waist', 'm-hip', 'backstory-input', 'costume-input', 'other-input', 'tags-input']
-      .forEach(function (idv) { $(idv).value = ''; });
-    refreshCreator('');
+    state.latestOptions = []; state.scene = ''; state.lastUserInput = '';
+    D.image.reset();
+    D.creator.resetForm();
     show('creator');
   }
 
   // ---------- Boot ----------
   async function boot() {
-    refreshCreator('');
-    $('name-input').addEventListener('input', function () { refreshCreator(); });
-    $('create-btn').addEventListener('click', createCharacter);
+    state.settings = await S.loadSettings();
+    state.model = state.settings.chatModel || AI.FALLBACK_MODEL;
+    D.creator.init();
+
     $('start-btn').addEventListener('click', startAdventure);
     $('send-btn').addEventListener('click', function () { sendAction($('action-input').value); });
-    $('reset-btn').addEventListener('click', resetGame);
+    $('retry-btn').addEventListener('click', retry);
+    $('settings-btn').addEventListener('click', function () { D.settings.open(); });
+    $('trap-btn').addEventListener('click', function () { D.tools.openTrap(fillInput); });
+    $('status-btn').addEventListener('click', function () { D.tools.openStatus(state.character.statusEffects || [], applyStatus); });
+    $('tab-chat').addEventListener('click', function () { switchTab('chat'); });
+    $('tab-image').addEventListener('click', function () { switchTab('image'); });
     $('action-input').addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAction($('action-input').value); }
     });
 
-    AI.listModels().then(function (r) { state.model = r.defaultModel || AI.FALLBACK_MODEL; });
+    AI.listModels().then(function (r) {
+      state.models = r.models || [];
+      if (!state.settings.chatModel) state.model = r.defaultModel || AI.FALLBACK_MODEL;
+    });
 
     var save = await S.loadSave();
     if (save && save.character && Array.isArray(save.messages)) {
-      state.character = save.character;
-      state.messages = save.messages;
-      state.summary = save.summary || '';
-      state.scene = save.scene || '';
+      state.character = save.character; state.messages = save.messages;
+      state.summary = save.summary || ''; state.scene = save.scene || '';
       var lastDm = null;
       for (var i = state.messages.length - 1; i >= 0; i--) {
         if (state.messages[i].role === 'assistant') { lastDm = state.messages[i]; break; }
       }
       state.latestOptions = lastDm ? P.parseOptions(lastDm.content) : (save.latestOptions || []);
+      if (state.scene) D.image.notifyScene(D.config.withQualityPrefix(state.scene));
       enterGame();
     } else {
       show('creator');
     }
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
-  } else {
-    boot();
-  }
+  D.app = { enterGame: enterGame, resetGame: resetGame, fillInput: fillInput, applyStatus: applyStatus };
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
 })(window.Dungeon);

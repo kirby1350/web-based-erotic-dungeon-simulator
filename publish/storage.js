@@ -4,6 +4,7 @@ window.Dungeon = window.Dungeon || {};
   'use strict';
 
   var SAVE_KEY = 'dungeon-static-save-v1';
+  var SETTINGS_KEY = 'dungeon-static-settings-v1';
 
   function hasKv() {
     return typeof window.dzmm !== 'undefined' && window.dzmm && window.dzmm.kv;
@@ -36,31 +37,53 @@ window.Dungeon = window.Dungeon || {};
     if (hasKv() && typeof window.dzmm.kv.delete === 'function') {
       try { await window.dzmm.kv.delete(key); } catch (e) {}
     }
-    // Also overwrite with null in case delete is unsupported.
     if (hasKv()) { try { await window.dzmm.kv.put(key, null); } catch (e) {} }
     try { localStorage.removeItem(key); } catch (_) {}
   }
 
   // ---- Game-save helpers (single slot) ----
-  async function loadSave() {
-    return await kvGet(SAVE_KEY);
-  }
+  function loadSave() { return kvGet(SAVE_KEY); }
+  function writeSave(save) { return kvPut(SAVE_KEY, save); }
+  function clearSave() { return kvDel(SAVE_KEY); }
 
-  async function writeSave(save) {
-    await kvPut(SAVE_KEY, save);
+  // ---- Settings ----
+  function defaultSettings() {
+    return { chatModel: '', proseStyle: 'standard', imageStyle: 'none', imageTagPreset: 'none', imageStyleCustom: '' };
   }
+  function sanitizeSettings(s) {
+    var d = defaultSettings();
+    var m = Object.assign(d, s || {});
+    var C = D.config;
+    if (!C.PROSE_STYLE_LABELS[m.proseStyle]) m.proseStyle = 'standard';
+    if (!C.IMAGE_STYLES[m.imageStyle]) m.imageStyle = 'none';
+    if (!C.IMAGE_TAG_PRESETS[m.imageTagPreset]) m.imageTagPreset = 'none';
+    if (typeof m.chatModel !== 'string') m.chatModel = '';
+    if (typeof m.imageStyleCustom !== 'string') m.imageStyleCustom = '';
+    return m;
+  }
+  async function loadSettings() { return sanitizeSettings(await kvGet(SETTINGS_KEY)); }
+  function saveSettings(s) { return kvPut(SETTINGS_KEY, s); }
 
-  async function clearSave() {
-    await kvDel(SAVE_KEY);
+  // ---- Export / import the whole save (settings + game) ----
+  async function exportAll() {
+    var bundle = { version: 2, settings: await loadSettings(), save: await loadSave() };
+    return JSON.stringify(bundle, null, 2);
+  }
+  // Throws on malformed JSON so callers can show why. Returns true on success.
+  async function importAll(raw) {
+    var data = JSON.parse(raw);
+    if (!data || typeof data !== 'object') throw new Error('文件格式无效');
+    if (data.settings) await saveSettings(sanitizeSettings(data.settings));
+    if (data.save) await writeSave(data.save);
+    return true;
   }
 
   D.storage = {
-    SAVE_KEY: SAVE_KEY,
-    kvPut: kvPut,
-    kvGet: kvGet,
-    kvDel: kvDel,
-    loadSave: loadSave,
-    writeSave: writeSave,
-    clearSave: clearSave,
+    SAVE_KEY: SAVE_KEY, SETTINGS_KEY: SETTINGS_KEY,
+    kvPut: kvPut, kvGet: kvGet, kvDel: kvDel,
+    loadSave: loadSave, writeSave: writeSave, clearSave: clearSave,
+    defaultSettings: defaultSettings, sanitizeSettings: sanitizeSettings,
+    loadSettings: loadSettings, saveSettings: saveSettings,
+    exportAll: exportAll, importAll: importAll,
   };
 })(window.Dungeon);

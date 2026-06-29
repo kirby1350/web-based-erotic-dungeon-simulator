@@ -70,17 +70,36 @@ window.Dungeon = window.Dungeon || {};
       '<div class="stat chip"><span class="chip-box">' + escapeHtml(devLine) + '</span></div>';
   }
 
-  function renderEncounter(c) {
+  function renderEncounter(c, handlers, loading) {
     var el = $('encounter-bar');
     var enc = c.encounter;
     if (!enc) { el.className = 'encounter-bar hidden'; el.innerHTML = ''; return; }
     el.className = 'encounter-bar';
     el.innerHTML =
-      '<div><span class="muted" style="font-size:.6rem;letter-spacing:.1em">' +
+      '<div class="e-row"><div class="e-info">' +
+      '<span class="muted" style="font-size:.6rem;letter-spacing:.1em">' +
       (enc.kind === 'monster' ? '遭遇怪物' : '陷入陷阱') + '</span> ' +
       '<span class="e-title">' + escapeHtml(enc.name) + '</span>' +
-      '<span class="e-lv">束缚 Lv' + enc.restraint + '</span></div>' +
-      (enc.summary ? '<div class="e-summary">' + escapeHtml(enc.summary) + '</div>' : '');
+      '<span class="e-lv">束缚 Lv' + enc.restraint + '</span>' +
+      (enc.summary ? '<div class="e-summary">' + escapeHtml(enc.summary) + '</div>' : '') +
+      '</div><div class="e-btns">' +
+      '<button class="btn tiny e-escape"' + (loading ? ' disabled' : '') + '>奋力挣脱</button>' +
+      '<button class="btn tiny e-surrender"' + (loading ? ' disabled' : '') + '>被玩坏丢掉</button>' +
+      '</div></div>';
+    if (handlers) {
+      var be = el.querySelector('.e-escape'), bs = el.querySelector('.e-surrender');
+      if (be) be.addEventListener('click', handlers.onEscape);
+      if (bs) bs.addEventListener('click', handlers.onSurrender);
+    }
+  }
+
+  // Summary / summarising indicator above the message list.
+  function renderSummaryBar(summary, summarising) {
+    var el = $('summary-bar');
+    if (!el) return;
+    if (!summary && !summarising) { el.className = 'summary-bar hidden'; el.innerHTML = ''; return; }
+    el.className = 'summary-bar';
+    el.innerHTML = summarising ? '正在归纳故事摘要…' : '📖 故事摘要已生成（保留近期对话）';
   }
 
   function renderStatusEffects(c, onDispel) {
@@ -166,6 +185,7 @@ window.Dungeon = window.Dungeon || {};
     renderRaces: renderRaces,
     renderStats: renderStats,
     renderEncounter: renderEncounter,
+    renderSummaryBar: renderSummaryBar,
     renderStatusEffects: renderStatusEffects,
     renderMessages: renderMessages,
     renderOptions: renderOptions,
