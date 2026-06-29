@@ -280,7 +280,7 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
     setLoading(true)
 
     const apiMessages = [
-      { role: 'system', content: buildSystemPrompt(character, summary || undefined) },
+      { role: 'system', content: buildSystemPrompt(character, summary || undefined, settings.proseStyle) },
       ...newMessages.map((m) => ({
         role: m.role,
         content:

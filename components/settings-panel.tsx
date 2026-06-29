@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { X, Settings, Key, Bot, Palette, RefreshCw, Loader2, Download, Upload } from 'lucide-react'
-import { AppSettings, CHAT_MODELS, ChatModelInfo, DzmmModel, IMAGE_MODELS, IMAGE_STYLES, IMAGE_TAG_PRESETS, TENSORART_MODELS, ImageStyle, ImageModel, ImageTagPreset, TensorArtModel, ImageProvider } from '@/lib/types'
+import { AppSettings, CHAT_MODELS, ChatModelInfo, DzmmModel, IMAGE_MODELS, IMAGE_STYLES, IMAGE_TAG_PRESETS, PROSE_STYLE_LABELS, TENSORART_MODELS, ImageStyle, ImageModel, ImageTagPreset, ProseStyle, TensorArtModel, ImageProvider } from '@/lib/types'
 import { saveSettings, exportAll, importAll } from '@/lib/storage'
 import { cn } from '@/lib/utils'
 
@@ -243,6 +243,34 @@ export function SettingsPanel({ settings, onSettingsChange, onClose }: SettingsP
                     ))
                   })()}
                 </div>
+              </div>
+
+              {/* Prose style */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <Bot className="w-3.5 h-3.5" />
+                  叙事文风
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(Object.keys(PROSE_STYLE_LABELS) as ProseStyle[]).map((key) => (
+                    <button
+                      key={key}
+                      onClick={() => update({ proseStyle: key })}
+                      title={PROSE_STYLE_LABELS[key].hint}
+                      className={cn(
+                        'px-3 py-2 rounded-lg border text-xs font-semibold transition-all',
+                        (local.proseStyle ?? 'standard') === key
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border bg-secondary text-muted-foreground hover:border-primary/50'
+                      )}
+                    >
+                      {PROSE_STYLE_LABELS[key].label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground/60 mt-1">
+                  {PROSE_STYLE_LABELS[local.proseStyle ?? 'standard'].hint}；去油约束始终生效
+                </p>
               </div>
             </>
           ) : (

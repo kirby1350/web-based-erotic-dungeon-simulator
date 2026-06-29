@@ -1,4 +1,28 @@
-import { Character, Race, RACE_INFO, TARGET_FLOOR, getFloorTheme } from '@/lib/types'
+import { Character, Race, RACE_INFO, TARGET_FLOOR, getFloorTheme, ProseStyle } from '@/lib/types'
+
+// 可切换文风片段（与常驻【文风禁令】叠加；standard 为空，只走去油）
+const PROSE_STYLE_PROMPTS: Record<ProseStyle, string> = {
+  standard: '',
+  dense: `【文风：重油堆叠（极致密集感官流）】
+本回合采用「重油堆叠」文风——在**严格遵守上方【文风禁令】黑名单**的前提下，把描写密度推到极致（密集 ≠ 偷懒，堆叠词必须新鲜、具体、贴合角色）：
+1. 形容词链：每个出场的身体部位前，连续堆叠 4 个以上「质感/肥度/油润/温度」修饰词不停顿（肥/厚/脂/油/腻/糯/雪滑/爆硕/沉甸甸…）。
+2. 功能化定语：用该部位的性用途或性史当作长定语（如「榨精专用甬道」「裹屌丝足」「能吞没整根的肥熟乳沟」）。
+3. 通感四件套：每个画面同时调动 质感+温度+气味+声音 中至少三样。
+4. 一部位一招牌喻体（须新鲜、不在同一段重复）：奶=吊钟/奶山，屄=馒头，臀=肉山/磨盘，后庭=螺纹，嘴=章鱼嘴/丁香小舌，脚趾=珍珠。
+5. 自造四字贬抑词当节奏锤：艳畜、母畜、肉壶、雌躯 之类。
+6. 气味轴贯穿全段：雌臭/狐骚/荷尔蒙媚香/油淫香汗，并与具体部位绑定。
+7. 细节闭环：颜色、道具、剧情前后呼应（如蔻丹色＝眼影色）。
+
+部位词库参考（可化用，不限于此）：
+- 乳：肥厚脂油腻糯雪滑爆硕沉甸甸，吊钟奶/奶山，颤起白花花肉浪
+- 乳头：肥肿酡红激突，椰枣/豆蔻大小，圆饼乳晕
+- 屄：肥嫩多汁宣软无毛馒头屄，多褶榨精甬道，溢雌臭卵汁拉银丝
+- 臀：脂附油肥安产型肉弹巨臀，肉山/磨盘，拍打荡肉浪「啪」
+- 后庭：紧致肥焖雌褶螺纹菊穴，自蠕动嘬屌，拔出「啵」
+- 嘴：嗦屌唇釉糯滑熟唇，丁香小舌，真空章鱼嘴
+- 脚：粉糯软腻玉足，珍珠脚趾，裹屌丝足，酸臭足汗
+- 气味：雌臭/狐骚/荷尔蒙媚香/油淫香汗`,
+}
 
 // ============================================================================
 // 集中管理：本项目所有 AI 提示词（聊天 DM / 故事摘要 / 随机陷阱 / 图片标签）
@@ -61,7 +85,7 @@ function lewdVoiceRules(name: string): string {
 // 1) 主聊天 DM 系统提示词
 // ---------------------------------------------------------------------------
 
-export function buildSystemPrompt(character: Character, summary?: string): string {
+export function buildSystemPrompt(character: Character, summary?: string, proseStyle: ProseStyle = 'standard'): string {
   const measurements = character.measurements ?? {}
   const measurementLine =
     measurements.bust || measurements.waist || measurements.hip
@@ -109,6 +133,16 @@ ${summarySection}
 
 ${lewdVoiceRules(character.name)}
 
+【文风禁令（提升质感，避免 AI 套话）】
+1. 严禁使用以下「油腻套话」——这些是廉价的 AI 填充词，一律改写：
+   - 转场拐杖：不知过了多久、也不知道过了多久、就在这时、话音刚落、下一秒、空气仿佛凝固、时间仿佛静止
+   - 烂俗比喻：像断了线的木偶、像一滩烂泥、像受惊的小鹿、像炸毛的小奶猫
+   - 空心强度词：前所未有的、灭顶的（快感）、理智的弦断裂、理智彻底失守、如潮水般袭来
+   - 言情滥腔：邪魅一笑、勾起一抹（邪魅/危险）的弧度、磁性的嗓音、低沉沙哑、深邃的眸子、眼底闪过一丝、骨节分明
+2. 高潮、绝顶、瘫软、坏掉等关键画面，**禁止套用现成比喻**；必须用**具体的身体细节**（某个部位的具体动作/收缩/痉挛/体液）或**该角色的专属意象**（结合其设定/服装/道具，如随颤抖作响的吊坠、被汗水浸透的发丝等）来写。
+3. 每个比喻必须新鲜、贴合当前情境，**不得重复使用同一个喻体**。
+4. 允许保留重口「行话/梗」（肉便器、坏掉、ahegao、脑子融化、子宫凸起、母猪/肉壶等）——这是题材惯例；但靠具体细节而非反复堆砌同一个标签来制造冲击。
+${PROSE_STYLE_PROMPTS[proseStyle] ? `\n${PROSE_STYLE_PROMPTS[proseStyle]}\n` : ''}
 【陷阱锁定规则（最严格执行）】
 1. 一旦${character.name}陷入任何陷阱（被触手缠绕、被怪物捕获、被束缚、被魔法控制等），除非玩家**明确输入**“逃脱”“挣脱”“离开陷阱”“突破束缚”“逃离”等关键词，否则${character.name}**绝对无法逃离**。
 2. 所有行动选项必须限制在陷阱内（抵抗/享受/堕落），即使判定成功也只能减轻束缚程度，不能完全逃脱。
@@ -186,7 +220,8 @@ export function buildSummaryUserPrompt(conversation: string): string {
 export function buildRandomTrapPrompt(
   character: Character,
   hint?: string,
-  currentLocation = '未知区域'
+  currentLocation = '未知区域',
+  proseStyle: ProseStyle = 'standard'
 ): string {
   const bd = character.bodyDevelopment ?? { breast: 0, clitoris: 0, vagina: 0, anus: 0 }
   const se = character.statusEffects ?? []
@@ -210,6 +245,9 @@ export function buildRandomTrapPrompt(
 身体开发度：胸部Lv${bd.breast ?? 0}、阴蒂Lv${bd.clitoris ?? 0}、阴道Lv${bd.vagina ?? 0}、肛门Lv${bd.anus ?? 0}
 当前异常状态：${se.map((s) => s.title).join('、') || '无'}
 当前位置：${currentLocation}
+
+【文风禁令】
+禁用以下 AI 套话，一律改写为具体细节：不知过了多久、就在这时、空气仿佛凝固、邪魅一笑、磁性的嗓音、深邃的眸子、像断了线的木偶、像一滩烂泥、像受惊的小鹿、前所未有的、灭顶的（快感）、理智的弦断裂/失守、如潮水般袭来。重口行话（肉便器、坏掉、ahegao 等）可用但勿反复堆同一个。${PROSE_STYLE_PROMPTS[proseStyle] ? `\n${PROSE_STYLE_PROMPTS[proseStyle]}` : ''}
 
 【生成要求】
 ${typeRule}

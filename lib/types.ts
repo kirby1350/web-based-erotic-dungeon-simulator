@@ -85,12 +85,21 @@ export type TensorArtModel = 'wai_nsfw_v16' | 'jankuv6'
 // Optional extra tag group appended to every image prompt
 export type ImageTagPreset = 'none' | 'curvy'
 
+// 叙事文风（与常驻的「去油」文风禁令叠加，可切换密度/风格）
+export type ProseStyle = 'standard' | 'dense'
+
+export const PROSE_STYLE_LABELS: Record<ProseStyle, { label: string; hint: string }> = {
+  standard: { label: '标准', hint: '均衡叙事，仅常驻去油约束' },
+  dense: { label: '重油堆叠', hint: '极致密集的感官堆叠流（仍遵守去油黑名单）' },
+}
+
 export interface AppSettings {
   chatModel: string
   imageModel: ImageModel
   imageStyle: ImageStyle
   imageStyleCustom: string
   imageTagPreset: ImageTagPreset
+  proseStyle: ProseStyle
   imageProvider: ImageProvider
   tensorartModel: TensorArtModel
   chatApiKey: string

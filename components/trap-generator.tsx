@@ -2,14 +2,14 @@
 
 import { useState, useCallback, useRef } from 'react'
 import { Loader2, RefreshCw, Check, X, Zap, Shuffle } from 'lucide-react'
-import { Character, PRESET_TRAPS, getFloorTheme } from '@/lib/types'
+import { Character, PRESET_TRAPS, ProseStyle, getFloorTheme } from '@/lib/types'
 import { chatStream } from '@/lib/dzmm'
 import { cn } from '@/lib/utils'
 import { buildRandomTrapPrompt } from '@/lib/prompts'
 
 interface TrapGeneratorProps {
   character: Character
-  settings: { chatModel: string; chatApiKey: string; grokApiKey?: string }
+  settings: { chatModel: string; chatApiKey: string; grokApiKey?: string; proseStyle?: ProseStyle }
   onConfirm: (text: string) => void
   onClose: () => void
 }
@@ -30,7 +30,7 @@ export function TrapGenerator({ character, settings, onConfirm, onClose }: TrapG
 
     const floorNo = character.floor ?? 1
     const theme = getFloorTheme(character.floorThemes, floorNo)
-    const prompt = buildRandomTrapPrompt(character, hint, `地下城第 ${floorNo} 层「${theme.name}」（${theme.ambience}）`)
+    const prompt = buildRandomTrapPrompt(character, hint, `地下城第 ${floorNo} 层「${theme.name}」（${theme.ambience}）`, settings.proseStyle)
 
     try {
       let fullText = ''

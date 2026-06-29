@@ -1,4 +1,4 @@
-import { AppSettings, GameSession, IMAGE_STYLES, IMAGE_MODELS, IMAGE_TAG_PRESETS, TENSORART_MODELS } from '@/lib/types'
+import { AppSettings, GameSession, IMAGE_STYLES, IMAGE_MODELS, IMAGE_TAG_PRESETS, PROSE_STYLE_LABELS, TENSORART_MODELS } from '@/lib/types'
 
 const SETTINGS_KEY = 'dungeon_settings'
 const CHARACTER_KEY = 'dungeon_character'
@@ -7,6 +7,7 @@ const SESSION_KEY = 'dungeon_session'
 const VALID_IMAGE_STYLES = Object.keys(IMAGE_STYLES)
 const VALID_IMAGE_MODELS = Object.keys(IMAGE_MODELS)
 const VALID_IMAGE_TAG_PRESETS = Object.keys(IMAGE_TAG_PRESETS)
+const VALID_PROSE_STYLES = Object.keys(PROSE_STYLE_LABELS)
 const VALID_TENSORART_MODELS = Object.keys(TENSORART_MODELS)
 
 export function getSettings(): AppSettings {
@@ -22,6 +23,7 @@ export function getSettings(): AppSettings {
     if (!VALID_IMAGE_STYLES.includes(merged.imageStyle)) merged.imageStyle = 'none'
     if (!VALID_IMAGE_MODELS.includes(merged.imageModel)) merged.imageModel = 'haruka_v2'
     if (!VALID_IMAGE_TAG_PRESETS.includes(merged.imageTagPreset)) merged.imageTagPreset = 'none'
+    if (!VALID_PROSE_STYLES.includes(merged.proseStyle)) merged.proseStyle = 'standard'
     if (!VALID_TENSORART_MODELS.includes(merged.tensorartModel)) merged.tensorartModel = 'wai_nsfw_v16'
     return merged
   } catch {
@@ -41,6 +43,7 @@ export function getDefaultSettings(): AppSettings {
     imageStyle: 'none',
     imageStyleCustom: '',
     imageTagPreset: 'none',
+    proseStyle: 'standard',
     imageProvider: 'pixai',
     tensorartModel: 'wai_nsfw_v16',
     chatApiKey: '',
