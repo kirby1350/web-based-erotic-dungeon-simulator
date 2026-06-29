@@ -22,6 +22,7 @@ export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
   const [backstory, setBackstory] = useState('')
   const [costumeDescription, setCostumeDescription] = useState('')
   const [otherDescription, setOtherDescription] = useState('')
+  const [danbooruTags, setDanbooruTags] = useState('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -47,6 +48,7 @@ export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
     setBackstory(preset.backstory)
     setCostumeDescription(preset.costumeDescription)
     setOtherDescription(preset.otherDescription)
+    setDanbooruTags(preset.danbooruTags ?? '')
     setAvatarUrl(preset.avatarUrl ?? null)
   }
 
@@ -59,6 +61,7 @@ export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
       backstory: backstory.trim(),
       costumeDescription: costumeDescription.trim(),
       otherDescription: otherDescription.trim(),
+      danbooruTags: danbooruTags.trim() || undefined,
       avatarUrl,
       level: 1,
       hp: 100,
@@ -248,6 +251,17 @@ export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
                 onChange={(e) => setOtherDescription(e.target.value)}
                 placeholder="其他补充设定，例如特殊能力、癖好、禁忌..."
                 rows={3}
+                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors resize-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block tracking-wider">画像 Danbooru 标签（选填）</label>
+              <textarea
+                value={danbooruTags}
+                onChange={(e) => setDanbooruTags(e.target.value)}
+                placeholder="角色固定外观标签，会附加到每次生图中以保持一致，例：1girl, long hair, blue eyes..."
+                rows={2}
                 className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors resize-none"
               />
             </div>

@@ -45,6 +45,8 @@ export interface Character {
   backstory: string
   costumeDescription: string
   otherDescription: string
+  // base danbooru appearance tags, injected into every image prompt for consistency
+  danbooruTags?: string
   avatarUrl: string | null
   level: number
   hp: number
@@ -72,18 +74,22 @@ export interface GeneratedImage {
   timestamp: number
 }
 
-export type ImageStyle = 'none' | 'dk.senie' | 'hakai_shin' | 'shiokonbu' | 'piromizu' | 'nohito' | 'masami_chie'
+export type ImageStyle = 'none' | 'dk.senie' | 'hakai_shin' | 'shiokonbu' | 'piromizu' | 'nohito' | 'masami_chie' | 'thirty_8ght'
 export type ImageModel = 'haruka_v2' | 'jankuv5' | 'wai_nsfw'
 
 export type ImageProvider = 'pixai' | 'tensorart'
 
 export type TensorArtModel = 'wai_nsfw_v16' | 'jankuv6'
 
+// Optional extra tag group appended to every image prompt
+export type ImageTagPreset = 'none' | 'curvy'
+
 export interface AppSettings {
   chatModel: string
   imageModel: ImageModel
   imageStyle: ImageStyle
   imageStyleCustom: string
+  imageTagPreset: ImageTagPreset
   imageProvider: ImageProvider
   tensorartModel: TensorArtModel
   chatApiKey: string
@@ -132,6 +138,19 @@ export const IMAGE_STYLES: Record<ImageStyle, { label: string; tags: string }> =
   masami_chie: {
     label: 'masami chie',
     tags: 'masami chie, soft lineart, delicate shading, warm palette, detailed illustration',
+  },
+  thirty_8ght: {
+    label: 'thirty_8ght',
+    tags: 'thirty_8ght, glossy skin, detailed shading, thick thighs, erotic illustration',
+  },
+}
+
+// Extra danbooru tag groups the player can toggle on top of the scene prompt.
+export const IMAGE_TAG_PRESETS: Record<ImageTagPreset, { label: string; tags: string }> = {
+  none: { label: '无', tags: '' },
+  curvy: {
+    label: '丰乳肥臀',
+    tags: 'curvy, huge breasts, huge nipples, huge areolae, large clitoris, clitoris, fat mons, lactation, female ejaculation',
   },
 }
 
@@ -198,6 +217,7 @@ export interface CharacterPreset {
   backstory: string
   costumeDescription: string
   otherDescription: string
+  danbooruTags?: string
   avatarUrl?: string
 }
 
@@ -287,26 +307,29 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
     race: 'tauren',
     avatarUrl: '/avatars/narmaya.png',
     measurements: { bust: '90', waist: '58', hip: '88' },
-    backstory: '碧蓝幻想世界中出身武术世家的剑豪，24岁的她日夜苦练只为追求最强境界。因一次与星晶兽相关的意外被卷入地下城。外表冷酷寡言，内心却隐藏着极强的被征服欲。身材虽娇小（134cm），却拥有夸张的E杯巨乳与紧致翘臀，修炼时乳房剧烈晃动、汗水顺着乳沟流下的模样早已是冒险者间的传说。',
-    costumeDescription: '极度紧身的黑色皮革战衣将丰满的E杯乳房勒得几乎要溢出来，胸口金色符文正好压在敏感的乳头上，随着呼吸不断摩擦。腰间暗紫色腰带像情趣束缚带一样深深勒进软肉，下身是开档式皮革短裤，裆部仅用一根细链遮挡，剧烈动作时粉嫩湿润的骚穴随时可能完全暴露。大腿根部的绑带深深陷入肉里，走路时会不断摩擦阴唇。银白色长发用黑色缎带半扎，散发着浓烈的雌性荷尔蒙气息。',
-    otherDescription: '说话简短冷淡，但在被触手或粗大肉棒贯穿时会瞬间崩坏成淫荡尖叫。极度骄傲的抖M体质，喜欢被打屁股、乳夹、强制高潮。身上那块神秘黑色印记是远古淫咒，发热时会让她阴蒂勃起、阴道疯狂收缩喷水，甚至主动抬起腰迎合侵犯。被操到高潮时会一边哭喊“下贱的家伙……❤”一边死死夹紧对方。',
+    danbooruTags: 'narmaya_(granblue_fantasy), 1girl, draph, long hair, white hair, purple eyes, pointy ears, large breasts, hair ribbon, black bodysuit',
+    backstory: '出身武术世家的剑豪，二十四岁，为追求剑道极致而日夜苦修，却在一次与星晶兽相关的意外中坠入这座地下城。她寡言冷峻，举手投足都是凛然的杀气，唯独那具娇小身躯（134cm）上夸张饱满的 E 杯巨乳与紧实翘臀，与她的冷艳气质格格不入——修炼时乳浪翻涌、汗水顺着深邃乳沟滑落的画面，早已是冒险者口口相传的传说。而在那身铠甲之下，藏着她从不敢言说的、被彻底征服的渴望。',
+    costumeDescription: '黑色皮革战衣紧绷在身上，将 E 杯乳房勒得几乎溢出，胸口的金色符文恰好压在敏感的乳尖上，每一次呼吸都摩擦出细小的战栗。暗紫腰带如情趣束具般深陷腰间软肉，开裆皮革短裤的裆部仅有一根细链遮掩，稍一动作便露出粉嫩湿润的私处。大腿根部的绑带嵌进肉里，行走间不断研磨着阴唇。银白长发以黑缎半束，发间逸散着浓烈的雌性气息。',
+    otherDescription: '平日言辞简短而冷淡，可一旦被触手或粗硬之物贯穿，骄傲便瞬间崩坏成淫荡的尖叫。她是极度骄矜的抖 M，迷恋掌掴、乳夹与强制高潮带来的羞耻快感。左身那道神秘黑色印记是远古淫咒，发热时会令她阴蒂勃起、媚肉痉挛喷潮，甚至不受控地挺腰迎合侵犯。登顶之际，她总是一边哭骂着「下贱的家伙……❤」，一边将对方死死夹紧。',
   },
   {
     name: '一之濑志希',
     race: 'human',
     avatarUrl: '/avatars/ichinose-shiki.png',
     measurements: { bust: '85', waist: '57', hip: '84' },
-    backstory: '来自现代日本的18岁天才化学家兼偶像，自称“平常的JK”。曾跳级海外留学，因觉得“无聊”而回国。把地下城冒险当成“最有趣的性实验”，经常偷偷调配强效春药涂在自己乳头、阴蒂或直接喷在玩家身上。表面永远挂着慵懒神秘的猫系微笑，实际上对各种变态玩法充满病态的好奇心。',
-    costumeDescription: '白色短款夹克里面完全真空，黑色细肩带勉强遮住粉嫩乳头，稍微一动就会走光。超短格纹迷你裙下面永远真空，黑色过膝袜深深勒进大腿软肉，厚底乐福鞋让她走路时屁股一扭一扭。淡紫色渐变短发上永远带着她自己调制的催情香水，只要靠近三米内就会让人鸡巴瞬间充血发硬。左耳多个耳洞，戴着小小的银色铃铛，高潮时会发出清脆的响声。',
-    otherDescription: '口头禅是“有意思呢～❤ 这种玩法的数据好棒哦～”。猫系小恶魔+变态科学家，喜欢用舌头、手指、注射器做各种奇怪实验（尿道扩张、子宫灌药、强制连续高潮记录等）。被操���时候会发出“にゃーっはっは❤”的猫叫式淫笑，喜欢把精液和淫水混合后涂满全身“留作样本”。对一切新奇玩法都说“试试看吧～很有趣的样子呢❤”。',
+    danbooruTags: 'ichinose_shiki, idolmaster_cinderella_girls, 1girl, short hair, purple hair, gradient hair, purple eyes, multiple ear piercings, mole under eye, medium breasts, white jacket, plaid skirt',
+    backstory: '来自现代日本的十八岁天才化学家兼偶像，自称「再平常不过的 JK」。曾跳级海外留学，只因觉得「无聊」便又回了国。坠入地下城后，她干脆把这场冒险当成「最有趣的性爱实验」，时常偷偷调配烈性春药，抹在自己的乳尖、阴蒂上，或直接喷向玩家。慵懒神秘的猫系微笑之下，是对一切变态玩法近乎病态的好奇心。',
+    costumeDescription: '白色短夹克内一丝不挂，仅靠两条黑色细肩带勉强遮住粉嫩乳尖，稍一扭动便春光乍泄。超短格纹迷你裙下同样真空，黑色过膝袜深深勒进大腿软肉，厚底乐福鞋让她走起路来臀肉一颠一颠。淡紫渐变短发上常年萦绕着自调的催情香，凑近三米便足以让人充血发硬。左耳数枚耳洞缀着小巧银铃，每当高潮便叮铃轻响。',
+    otherDescription: '口头禅是「真有意思呢～❤ 这种玩法的数据好棒哦～」。她是猫系小恶魔与变态科学家的结合体，热衷用舌头、手指与注射器做各种离谱实验——尿道扩张、子宫灌药、强制连续高潮记录，无所不试。被操到失神时会发出「にゃーっはっは❤」般的猫叫淫笑，喜欢把精液与淫水混在一起涂满全身「留作样本」。面对任何新奇花样，她都只会笑着说一句「试试看吧～似乎很有趣呢❤」。',
   },
   {
     name: '桑山千雪',
     race: 'human',
     avatarUrl: '/avatars/kuwayama-chiyuki.png',
     measurements: { bust: '93', waist: '61', hip: '90' },
-    backstory: '23岁的温柔音乐制作人兼偶像，因一首古老召唤曲谱被卷入地下城。外表是完美的大姐姐、贤妻良母，总是把他人放在第一位，内心却隐藏着强烈的被保护欲与受孕渴望。她那敏感的音乐天赋让她对“节奏”和“震动”极度敏感，被有规律抽插时很容易连续潮吹失禁。',
-    costumeDescription: '奶油色蓬松毛衣领口开得极低，随时能看见深邃乳沟和半露的粉色大乳晕，毛衣材质极软，乳头稍微硬起就会明显顶出两点。下身米白色长裙里面是开档情趣内裤，方便随时被插入。金棕色长卷发散发着淡淡奶香，颈间的音符吊坠在高潮时会随着身体颤抖发出清脆撞击声，像在为她的淫叫伴奏。',
-    otherDescription: '说话永远轻柔带敬语，即使被操到翻白眼也会用颤抖的声音说“请……请再深一点……❤”。极度顺从的母性抖M，喜欢被叫“妈妈”或“姐姐”。被内射时会温柔抚摸对方后背说“都给你……把千雪的子宫灌满吧❤”。对音乐节奏敏感，被规律抽插时会连续高潮，潮吹时会害羞地用双手捂脸却主动大大张开双腿。异常状态“发情期”时会主动求育，恳求玩家“请把我变成只属于您的肉便器妈妈”。',
+    danbooruTags: 'kuwayama_chiyuki, idolmaster_shiny_colors, 1girl, long hair, wavy hair, light brown hair, brown eyes, large breasts, cream sweater, music note',
+    backstory: '二十三岁的温柔音乐制作人兼偶像，因弹奏一卷古老的召唤曲谱而被卷入地下城。她是众人眼中完美的大姐姐、贤妻良母，永远把他人放在第一位，内心深处却埋着强烈的被守护欲与受孕渴望。天生敏锐的乐感让她对「节奏」与「震动」格外敏感，一旦被规律地抽插，便极易接连潮吹失禁。',
+    costumeDescription: '奶油色蓬松毛衣领口开得极低，深邃乳沟与半露的粉色大乳晕一览无遗；毛衣柔软贴身，乳尖稍稍挺起便清晰顶出两点。米白长裙下是开裆情趣内裤，随时方便被贯入。金棕色长卷发飘着淡淡奶香，颈间的音符吊坠在她颤抖高潮时叮当轻撞，仿佛在为她的淫叫伴奏。',
+    otherDescription: '说话永远轻柔有礼，即便被操到翻白眼，也会用发颤的嗓音恳求「请……请再深一点……❤」。她是极度顺从的母性抖 M，喜欢被唤作「妈妈」或「姐姐」。被内射时会温柔抚着对方的背低语「都给你……把千雪的子宫灌满吧❤」。对节奏极度敏感的她，被规律抽插便会接连登顶，潮吹时害羞地以双手掩面，却又主动将双腿大大张开。一旦陷入「发情」状态，她便会主动求育，哀求玩家「请把我变成只属于您的肉便器妈妈」。',
   },
 ]

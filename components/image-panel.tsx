@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { Image as ImageIcon, Loader2, RefreshCw, Wand2, ChevronDown, ChevronUp } from 'lucide-react'
-import { AppSettings, IMAGE_MODELS, IMAGE_STYLES, TENSORART_MODELS, Character } from '@/lib/types'
+import { AppSettings, IMAGE_MODELS, IMAGE_STYLES, IMAGE_TAG_PRESETS, TENSORART_MODELS, Character } from '@/lib/types'
 import { DEFAULT_SCENE_PROMPT } from '@/lib/prompts'
 
 interface ImagePanelProps {
@@ -71,10 +71,15 @@ export function ImagePanel({ settings, character, pendingScene, onSceneHandled }
     setLoading(true)
     setError(null)
     try {
+      const charTags = character.danbooruTags?.trim() ?? ''
       const styleTags = (IMAGE_STYLES[settings.imageStyle] ?? IMAGE_STYLES['none']).tags
+      const presetTags = (IMAGE_TAG_PRESETS[settings.imageTagPreset] ?? IMAGE_TAG_PRESETS['none']).tags
       const customTags = settings.imageStyleCustom?.trim() ?? ''
-      const allStyleTags = [styleTags, customTags].filter(Boolean).join(', ')
-      const finalPrompt = allStyleTags ? `${prompt}, ${allStyleTags}` : prompt
+      // character identity first (keeps appearance consistent), then the scene,
+      // then optional tag group, art style, and any custom tags.
+      const finalPrompt = [charTags, prompt, presetTags, styleTags, customTags]
+        .filter(Boolean)
+        .join(', ')
 
       const provider = settings.imageProvider ?? 'pixai'
       let imageUrls: string[]
@@ -134,7 +139,7 @@ export function ImagePanel({ settings, character, pendingScene, onSceneHandled }
     } finally {
       setLoading(false)
     }
-  }, [settings, pollPixai, pollTensorart])
+  }, [settings, character, pollPixai, pollTensorart])
 
   const handleAutoGenerate = useCallback(async () => {
     if (!pendingScene) return

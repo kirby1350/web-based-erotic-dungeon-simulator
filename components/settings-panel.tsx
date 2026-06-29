@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { X, Settings, Key, Bot, Palette, RefreshCw, Loader2, Download, Upload } from 'lucide-react'
-import { AppSettings, CHAT_MODELS, ChatModelInfo, DzmmModel, IMAGE_MODELS, IMAGE_STYLES, TENSORART_MODELS, ImageStyle, ImageModel, TensorArtModel, ImageProvider } from '@/lib/types'
+import { AppSettings, CHAT_MODELS, ChatModelInfo, DzmmModel, IMAGE_MODELS, IMAGE_STYLES, IMAGE_TAG_PRESETS, TENSORART_MODELS, ImageStyle, ImageModel, ImageTagPreset, TensorArtModel, ImageProvider } from '@/lib/types'
 import { saveSettings, exportAll, importAll } from '@/lib/storage'
 import { cn } from '@/lib/utils'
 
@@ -386,6 +386,32 @@ export function SettingsPanel({ settings, onSettingsChange, onClose }: SettingsP
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Tag Preset Group */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <Palette className="w-3.5 h-3.5" />
+                  预设标签组
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(Object.keys(IMAGE_TAG_PRESETS) as ImageTagPreset[]).map((key) => (
+                    <button
+                      key={key}
+                      onClick={() => update({ imageTagPreset: key })}
+                      title={IMAGE_TAG_PRESETS[key].tags}
+                      className={cn(
+                        'px-3 py-2 rounded-lg border text-xs font-semibold transition-all',
+                        (local.imageTagPreset ?? 'none') === key
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border bg-secondary text-muted-foreground hover:border-primary/50'
+                      )}
+                    >
+                      {IMAGE_TAG_PRESETS[key].label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground/60 mt-1">附加到每次生图的额外标签组</p>
               </div>
 
               {/* Custom Style Tags */}
