@@ -53,38 +53,99 @@ async function fetchSummary(messages: ChatMessage[], model: string, apiKey: stri
   return text.trim()
 }
 
-// Extract and merge all sibling JSON objects inside [MARKER:...obj1, obj2...]
-// Handles the case where AI splits content into two objects. `marker` is e.g. 'STATS' or 'DESC'.
-function extractMarkerJson(text: string, marker: string): Record<string, unknown> | null {
-  const tag = `[${marker}:`
-  const start = text.indexOf(tag)
-  if (start === -1) return null
+// Models often emit the JSON with full-width punctuation (：，｛｝ etc.) instead of
+// ASCII — valid-looking but unparseable. Convert the STRUCTURAL ones to ASCII,
+// while leaving punctuation *inside string values* (narrative text) untouched.
+function normalizeJsonPunctuation(s: string): string {
+  const map: Record<string, string> = {
+    '：': ':', '，': ',', '｛': '{', '｝': '}', '［': '[', '］': ']', '　': ' ',
+  }
+  let out = ''
+  let inStr = false
+  let esc = false
+  for (let k = 0; k < s.length; k++) {
+    const ch = s[k]
+    if (esc) { out += ch; esc = false; continue }
+    if (ch === '\\') { out += ch; esc = true; continue }
+    if (ch === '"') { inStr = !inStr; out += ch; continue }
+    out += !inStr && map[ch] ? map[ch] : ch
+  }
+  return out
+}
 
-  // Collect all top-level { } objects between [MARKER: and the matching ]
+// Best-effort parse of a JSON object string that may use full-width punctuation
+// or be truncated mid-stream (the STATS/DESC tail can be cut off at the token limit).
+function parseJsonLenient(raw: string): Record<string, unknown> | null {
+  const normalized = normalizeJsonPunctuation(raw)
+  try { return JSON.parse(normalized) } catch { /* fall through to repair */ }
+
+  let s = normalized
+  // Walk it tracking string/escape state and a bracket stack, so we can close
+  // whatever the truncation left open.
+  const stack: string[] = []
+  let inStr = false
+  let esc = false
+  for (let k = 0; k < s.length; k++) {
+    const ch = s[k]
+    if (esc) { esc = false; continue }
+    if (ch === '\\') { esc = true; continue }
+    if (ch === '"') { inStr = !inStr; continue }
+    if (inStr) continue
+    if (ch === '{' || ch === '[') stack.push(ch)
+    else if (ch === '}' || ch === ']') stack.pop()
+  }
+  if (inStr) s += '"'                                   // close a string cut mid-value
+  s = s.replace(/[,{]\s*"[^"]*"\s*:?\s*$/, (m) => (m[0] === '{' ? '{' : '')) // drop a dangling key
+  s = s.replace(/,\s*$/, '')                            // drop a trailing comma
+  while (stack.length) s += stack.pop() === '{' ? '}' : ']'  // close open brackets
+  s = s.replace(/,\s*([}\]])/g, '$1')                  // remove commas before closers
+  try { return JSON.parse(s) } catch { return null }
+}
+
+// Extract and merge all sibling JSON objects inside [MARKER:...obj1, obj2...].
+// `marker` is e.g. 'STATS' or 'DESC'. Tolerant of a full-width colon (：) and of
+// a final object truncated by the token limit.
+function extractMarkerJson(text: string, marker: string): Record<string, unknown> | null {
+  const re = new RegExp(`\\[${marker}\\s*[:：]`, 'i')
+  const m = re.exec(text)
+  if (!m) return null
+
   const objects: Record<string, unknown>[] = []
-  let i = start + tag.length
+  let i = m.index + m[0].length
 
   while (i < text.length) {
-    // Skip whitespace and commas between objects
-    if (text[i] === ' ' || text[i] === '\t' || text[i] === '\n' || text[i] === ',') { i++; continue }
-    // Stop at closing ]
-    if (text[i] === ']') break
-    // Start of an object
-    if (text[i] === '{') {
+    const ch = text[i]
+    if (ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r' || ch === ',') { i++; continue }
+    if (ch === ']') break
+    if (ch === '{') {
       let depth = 0
+      let inStr = false
+      let esc = false
+      let closed = false
       const objStart = i
-      while (i < text.length) {
-        if (text[i] === '{') depth++
-        else if (text[i] === '}') {
+      for (; i < text.length; i++) {
+        const c = text[i]
+        if (esc) { esc = false; continue }
+        if (c === '\\') { esc = true; continue }
+        if (c === '"') { inStr = !inStr; continue }
+        if (inStr) continue
+        if (c === '{') depth++
+        else if (c === '}') {
           depth--
           if (depth === 0) {
-            const objStr = text.slice(objStart, i + 1)
-            try { objects.push(JSON.parse(objStr)) } catch { /* skip malformed */ }
+            const parsed = parseJsonLenient(text.slice(objStart, i + 1))
+            if (parsed) objects.push(parsed)
             i++
+            closed = true
             break
           }
         }
-        i++
+      }
+      if (!closed) {
+        // unterminated final object — truncated by the token limit; repair it
+        const parsed = parseJsonLenient(text.slice(objStart))
+        if (parsed) objects.push(parsed)
+        break
       }
     } else {
       i++
@@ -97,46 +158,27 @@ function extractMarkerJson(text: string, marker: string): Record<string, unknown
 }
 
 // Strip a [MARKER:{...}] block (with balanced braces) from text.
-function stripMarkerBlock(text: string, marker: string): string {
-  const tag = `[${marker}:`
-  const start = text.indexOf(tag)
-  if (start === -1) return text
-  const braceStart = text.indexOf('{', start)
-  if (braceStart === -1) {
-    // marker without a brace — drop to the next ] (or to end if missing)
-    const closeTag = text.indexOf(']', start)
-    return closeTag !== -1 ? text.slice(0, start) + text.slice(closeTag + 1) : text.slice(0, start)
-  }
-  let depth = 0
-  for (let i = braceStart; i < text.length; i++) {
-    if (text[i] === '{') depth++
-    else if (text[i] === '}') {
-      depth--
-      if (depth === 0) {
-        const closeTag = text.indexOf(']', i)
-        const end = closeTag !== -1 ? closeTag + 1 : i + 1
-        return text.slice(0, start) + text.slice(end)
-      }
-    }
-  }
-  // Unbalanced (truncated) — drop everything from the marker on
-  return text.slice(0, start)
-}
+// Everything from the first structured marker onward is UI metadata, not prose.
+// Markers ([OPTIONS]/[SCENE]/[STATS]/[DESC]) always follow the narrative, and the
+// model is inconsistent about closing tags and full/half-width colons — so we cut
+// the narrative at the first marker rather than matching each block precisely.
+const MARKER_START = /\[OPTIONS\]|\[SCENE|\[STATS|\[DESC/i
 
 function cleanContent(content: string): string {
-  let out = content.replace(/\[OPTIONS\][\s\S]*?\[\/OPTIONS\]/gi, '')
-  out = out.replace(/\[SCENE:[^\]]*\]/gi, '')
-  out = stripMarkerBlock(out, 'STATS')
-  out = stripMarkerBlock(out, 'DESC')
-  return out.trim()
+  const idx = content.search(MARKER_START)
+  return (idx === -1 ? content : content.slice(0, idx)).trim()
 }
 
 function parseOptions(content: string): string[] {
-  const block = content.match(/\[OPTIONS\]([\s\S]*?)\[\/OPTIONS\]/i)
+  // Capture the [OPTIONS] body up to its close tag, the next marker, or end —
+  // the model often omits [/OPTIONS]. Accept "1." / "-" / "•" bullet styles.
+  const block = content.match(/\[OPTIONS\]([\s\S]*?)(?:\[\/OPTIONS\]|\[SCENE|\[STATS|\[DESC|$)/i)
   if (!block) return []
-  const lines = block[1].split('\n').map((l) => l.trim()).filter(Boolean)
-  return lines
-    .map((l) => l.replace(/^\d+\.\s*/, '').trim())
+  return block[1]
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => l.replace(/^[-*•]\s*/, '').replace(/^\d+[.、)]\s*/, '').trim())
     .filter((l) => l.length > 0)
     .slice(0, 4)
 }
@@ -374,12 +416,12 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
 
           if (Object.keys(updates).length > 0) onCharacterUpdate(updates)
         } catch (err) {
-          console.error('STATS JSON parse failed:', err, stats)
+          console.warn('STATS JSON parse failed:', err, stats)
           setStatsError('本回合角色数值更新失败（AI 输出的状态格式有误）')
         }
       } else if (/\[STATS/i.test(fullText)) {
         // marker present but couldn't extract a usable object
-        console.error('STATS block present but unparseable')
+        console.warn('STATS block present but unparseable')
         setStatsError('本回合角色数值更新失败（AI 输出的状态格式有误）')
       }
 
@@ -387,10 +429,11 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
       const options = parseOptions(fullText)
       setLatestOptions(options)
 
-      // Parse [SCENE] → 纯 danbooru tags
-      const sceneMatch = fullText.match(/\[SCENE:\s*([^\]]+)\]/i)
+      // Parse [SCENE] → danbooru tags (tolerate full-width colon/comma/space)
+      const sceneMatch = fullText.match(/\[SCENE\s*[:：]\s*([^\]]+)\]/i)
       if (sceneMatch) {
-        onRequestImage(withQualityPrefix(sceneMatch[1]))
+        const tags = sceneMatch[1].replace(/，/g, ',').replace(/　/g, ' ')
+        onRequestImage(withQualityPrefix(tags))
       }
     } catch (e: unknown) {
       if (e instanceof DOMException && e.name === 'AbortError') {

@@ -4,7 +4,9 @@ import { CHAT_MODELS } from '@/lib/types'
 export const runtime = 'edge'
 
 const CHAT_TEMPERATURE = 0.9
-const CHAT_MAX_TOKENS = 2048
+// Generous cap: a rich scene plus the trailing [STATS]/[DESC] JSON must both fit,
+// otherwise the structured tail gets truncated and can't be parsed.
+const CHAT_MAX_TOKENS = 4096
 const DEFAULT_CHAT_MODEL = 'x-apex-neo-16k'
 const DEFAULT_GROK_MODEL = 'grok-4-latest'
 const GROK_ENDPOINT = 'https://api.x.ai/v1/chat/completions'

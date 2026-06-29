@@ -138,6 +138,7 @@ ${lewdVoiceRules(character.name)}
 
 【状态更新规则（每次回复必须严格输出，不得省略）】
 在回复最末尾依次输出两个标记，各自单行、完整、不允许换行、不允许截断：
+（极重要：标记内的 JSON 结构必须使用**半角符号** : , " { } [ ]，严禁使用全角符号 ：，｛｝等；半角符号仅用于 JSON 结构，字符串内部的中文描述可正常使用中文标点）
 
 1. 先输出核心数值（轻量，务必完整）：
    [STATS:{"hp":数字,"pleasure":数字,"desire":数字,"floor":当前层数整数,"encounter":{"id":"tentacle_pit","name":"触手深渊","kind":"trap","summary":"一句话描述当前束缚/威胁","restraint":0-3},"measurements":{"bust":"数字","waist":"数字","hip":"数字"},"bodyDevelopment":{"breast":0-5,"clitoris":0-5,"urethra":0-5,"vagina":0-5,"anus":0-5,"exp":{"breast":0-100,"clitoris":0-100,"urethra":0-100,"vagina":0-100,"anus":0-100}},"statusEffects":[{"id":"snake_bind","title":"状态标题","description":"一句话描述此状态对角色的影响"}]}]
