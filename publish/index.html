@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content, user-scalable=no">
+  <title>地下城探险模拟器</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <!-- ============ Character creation view ============ -->
+  <section id="creator-view" class="view">
+    <div class="creator-scroll scroll-area">
+      <div class="creator-inner">
+        <header class="creator-head">
+          <h1 class="gold">地下城探险</h1>
+          <p class="muted">创建你的冒险者，深入十层黑暗地城</p>
+        </header>
+
+        <div class="card">
+          <label class="field-label">预设角色</label>
+          <div id="preset-list" class="preset-grid"></div>
+
+          <hr class="divider">
+
+          <label class="field-label" for="name-input">角色名称</label>
+          <input id="name-input" class="input" type="text" placeholder="输入你的角色名…" maxlength="24">
+
+          <label class="field-label">选择种族</label>
+          <div id="race-list" class="race-grid"></div>
+          <div id="race-desc" class="race-desc"></div>
+
+          <label class="field-label">体格数据（选填）</label>
+          <div class="measure-grid">
+            <div><span class="sub-label">数值一</span><input id="m-bust" class="input center" type="number" min="0" max="300" placeholder="—"></div>
+            <div><span class="sub-label">数值二</span><input id="m-waist" class="input center" type="number" min="0" max="300" placeholder="—"></div>
+            <div><span class="sub-label">数值三</span><input id="m-hip" class="input center" type="number" min="0" max="300" placeholder="—"></div>
+          </div>
+
+          <label class="field-label" for="backstory-input">人物设定（选填）</label>
+          <textarea id="backstory-input" class="input" rows="3" placeholder="背景故事、性格、过往经历…"></textarea>
+
+          <label class="field-label" for="costume-input">装束设定（选填）</label>
+          <textarea id="costume-input" class="input" rows="3" placeholder="服装、外貌、随身装备…"></textarea>
+
+          <label class="field-label" for="other-input">其他设定（选填）</label>
+          <textarea id="other-input" class="input" rows="3" placeholder="特殊能力、信念、禁忌…"></textarea>
+
+          <label class="field-label" for="tags-input">画像标签（选填 / 英文）</label>
+          <textarea id="tags-input" class="input" rows="2" placeholder="1girl, knight, silver hair, dark fantasy…"></textarea>
+
+          <button id="create-btn" class="btn primary block" disabled>踏入地下城</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Game view ============ -->
+  <section id="game-view" class="view hidden">
+    <header class="topbar">
+      <h1 class="gold small">地下城探险</h1>
+      <div class="top-right">
+        <span id="char-name" class="muted"></span>
+        <button id="reset-btn" class="btn ghost tiny">重置</button>
+      </div>
+    </header>
+
+    <div id="stat-bar" class="stat-bar"></div>
+    <div id="encounter-bar" class="encounter-bar hidden"></div>
+    <div id="status-bar" class="status-effects hidden"></div>
+
+    <div id="messages" class="messages scroll-area"></div>
+
+    <div id="scene-box" class="scene-box hidden"></div>
+    <div id="error-box" class="error-box hidden"></div>
+
+    <div id="options" class="options hidden"></div>
+
+    <div class="composer">
+      <textarea id="action-input" class="input" rows="2" placeholder="输入你的行动…"></textarea>
+      <div class="composer-btns">
+        <button id="send-btn" class="btn primary">行动</button>
+        <button id="start-btn" class="btn primary hidden">开始探索</button>
+      </div>
+    </div>
+  </section>
+
+  <script src="./data.js"></script>
+  <script src="./parser.js"></script>
+  <script src="./storage.js"></script>
+  <script src="./prompts.js"></script>
+  <script src="./ai.js"></script>
+  <script src="./render.js"></script>
+  <script src="./turn.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
