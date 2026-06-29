@@ -3,6 +3,13 @@ import { CHAT_MODELS } from '@/lib/types'
 
 export const runtime = 'edge'
 
+const CHAT_TEMPERATURE = 0.9
+const CHAT_MAX_TOKENS = 2048
+const DEFAULT_CHAT_MODEL = 'x-apex-neo-16k'
+const DEFAULT_GROK_MODEL = 'grok-4-latest'
+const GROK_ENDPOINT = 'https://api.x.ai/v1/chat/completions'
+const DZMM_ENDPOINT = 'https://www.gpt4novel.com/api/xiaoshuoai/ext/v1/chat/completions'
+
 export async function POST(req: NextRequest) {
   const { messages, model, apiKey, grokApiKey } = await req.json()
 
@@ -16,17 +23,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '未配置 Grok API Key' }, { status: 401 })
     }
     try {
-      const response = await fetch('https://api.x.ai/v1/chat/completions', {
+      const response = await fetch(GROK_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${key}`,
         },
         body: JSON.stringify({
-          model: model || 'grok-4-latest',
+          model: model || DEFAULT_GROK_MODEL,
           messages,
           stream: true,
-          temperature: 0.9,
+          temperature: CHAT_TEMPERATURE,
         }),
       })
       if (!response.ok) {
@@ -52,23 +59,20 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const response = await fetch(
-      'https://www.gpt4novel.com/api/xiaoshuoai/ext/v1/chat/completions',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${key}`,
-        },
-        body: JSON.stringify({
-          model: model || 'Apex-Neo-0213-16k',
-          messages,
-          stream: true,
-          temperature: 0.9,
-          max_tokens: 2048,
-        }),
-      }
-    )
+    const response = await fetch(DZMM_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: model || DEFAULT_CHAT_MODEL,
+        messages,
+        stream: true,
+        temperature: CHAT_TEMPERATURE,
+        max_tokens: CHAT_MAX_TOKENS,
+      }),
+    })
 
     if (!response.ok) {
       const err = await response.text()

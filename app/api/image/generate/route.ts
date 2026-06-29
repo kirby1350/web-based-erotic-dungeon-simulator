@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+const PIXAI_ENDPOINT = 'https://api.pixai.art/v1/task'
+const DEFAULT_PIXAI_MODEL_ID = '1861558740588989558'
+const DEFAULT_IMAGE_WIDTH = 768
+const DEFAULT_IMAGE_HEIGHT = 1024
+const DEFAULT_BATCH_SIZE = 1
+
 export async function POST(req: NextRequest) {
   const { prompts, modelId, width, height, batchSize, apiKey } = await req.json()
 
@@ -10,7 +16,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const response = await fetch('https://api.pixai.art/v1/task', {
+    const response = await fetch(PIXAI_ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -19,10 +25,10 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         parameters: {
           prompts,
-          modelId: modelId || '1861558740588989558',
-          width: width || 768,
-          height: height || 1024,
-          batchSize: batchSize || 1,
+          modelId: modelId || DEFAULT_PIXAI_MODEL_ID,
+          width: width || DEFAULT_IMAGE_WIDTH,
+          height: height || DEFAULT_IMAGE_HEIGHT,
+          batchSize: batchSize || DEFAULT_BATCH_SIZE,
         },
       }),
     })

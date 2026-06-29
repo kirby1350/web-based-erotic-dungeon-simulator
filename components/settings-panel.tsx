@@ -1,10 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { X, Settings, Key, Bot, Palette } from 'lucide-react'
-import { AppSettings, CHAT_MODELS, IMAGE_MODELS, IMAGE_STYLES, TENSORART_MODELS, ImageStyle, ImageModel, TensorArtModel, ImageProvider } from '@/lib/types'
-import { saveSettings } from '@/lib/storage'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { X, Settings, Key, Bot, Palette, RefreshCw, Loader2, Download, Upload } from 'lucide-react'
+import { AppSettings, CHAT_MODELS, ChatModelInfo, DzmmModel, IMAGE_MODELS, IMAGE_STYLES, TENSORART_MODELS, ImageStyle, ImageModel, TensorArtModel, ImageProvider } from '@/lib/types'
+import { saveSettings, exportAll, importAll } from '@/lib/storage'
 import { cn } from '@/lib/utils'
+
+const DZMM_GROUP = 'DZMM 模型（实时获取）'
+const GROK_MODELS = CHAT_MODELS.filter((m) => m.provider === 'grok')
+const STATIC_DEFAULT_MODELS = CHAT_MODELS.filter((m) => m.provider === 'default')
 
 interface SettingsPanelProps {
   settings: AppSettings
@@ -15,10 +19,88 @@ interface SettingsPanelProps {
 export function SettingsPanel({ settings, onSettingsChange, onClose }: SettingsPanelProps) {
   const [local, setLocal] = useState<AppSettings>({ ...settings })
   const [activeTab, setActiveTab] = useState<'chat' | 'image'>('chat')
+  const [dzmmModels, setDzmmModels] = useState<DzmmModel[]>([])
+  const [modelsLoading, setModelsLoading] = useState(false)
+  const [modelsError, setModelsError] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const update = (patch: Partial<AppSettings>) => {
     setLocal((prev) => ({ ...prev, ...patch }))
   }
+
+  const handleExport = () => {
+    try {
+      const blob = new Blob([exportAll()], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `dungeon-save-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      console.error('export failed:', e)
+      alert('导出失败：' + String(e))
+    }
+  }
+
+  const handleImportFile = async (file: File) => {
+    try {
+      const text = await file.text()
+      importAll(text)
+      alert('导入成功，将重新载入存档。')
+      window.location.reload()
+    } catch (e) {
+      console.error('import failed:', e)
+      alert('导入失败：文件无效或格式不正确。')
+    }
+  }
+
+  const fetchModels = useCallback(async (apiKey: string) => {
+    setModelsLoading(true)
+    setModelsError('')
+    try {
+      const res = await fetch('/api/models', {
+        headers: apiKey ? { 'x-api-key': apiKey } : {},
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '获取失败')
+      const list: DzmmModel[] = Array.isArray(data?.data) ? data.data : []
+      setDzmmModels(list)
+    } catch (e) {
+      setModelsError(String(e instanceof Error ? e.message : e))
+    } finally {
+      setModelsLoading(false)
+    }
+  }, [])
+
+  // Load the live DZMM model list once when the panel opens
+  useEffect(() => {
+    fetchModels(local.chatApiKey || '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // If the saved model isn't offered by the live list, fall back to the first one
+  useEffect(() => {
+    if (dzmmModels.length === 0) return
+    const validIds = new Set([...dzmmModels.map((m) => m.id), ...GROK_MODELS.map((m) => m.value)])
+    if (!validIds.has(local.chatModel)) {
+      setLocal((prev) => ({ ...prev, chatModel: dzmmModels[0].id }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dzmmModels])
+
+  // Live DZMM models (fallback to the static list if the fetch failed), plus Grok
+  const chatModels: ChatModelInfo[] = [
+    ...(dzmmModels.length > 0
+      ? dzmmModels.map((m) => ({
+          value: m.id,
+          label: m.context_window ? `${m.name} · ${Math.round(m.context_window / 1000)}K` : m.name,
+          group: DZMM_GROUP,
+          provider: 'default' as const,
+        }))
+      : STATIC_DEFAULT_MODELS),
+    ...GROK_MODELS,
+  ]
 
   const handleSave = () => {
     saveSettings(local)
@@ -108,14 +190,30 @@ export function SettingsPanel({ settings, onSettingsChange, onClose }: SettingsP
 
               {/* Chat Model */}
               <div>
-                <label className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
-                  <Bot className="w-3.5 h-3.5" />
-                  对话模型
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <Bot className="w-3.5 h-3.5" />
+                    对话模型
+                  </label>
+                  <button
+                    onClick={() => fetchModels(local.chatApiKey || '')}
+                    disabled={modelsLoading}
+                    title="刷新模型列表"
+                    className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary disabled:opacity-40 transition-colors"
+                  >
+                    {modelsLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                    刷新
+                  </button>
+                </div>
+                {modelsError && (
+                  <p className="text-[10px] text-destructive-foreground/80 mb-2">
+                    模型列表获取失败（已回退到内置列表）：{modelsError}
+                  </p>
+                )}
                 <div className="space-y-3">
                   {(() => {
-                    const groups: Record<string, typeof CHAT_MODELS> = {}
-                    CHAT_MODELS.forEach((m) => {
+                    const groups: Record<string, ChatModelInfo[]> = {}
+                    chatModels.forEach((m) => {
                       if (!groups[m.group]) groups[m.group] = []
                       groups[m.group].push(m)
                     })
@@ -311,8 +409,35 @@ export function SettingsPanel({ settings, onSettingsChange, onClose }: SettingsP
           )}
         </div>
 
-        {/* Save */}
-        <div className="p-4 border-t border-border">
+        {/* Save + backup */}
+        <div className="p-4 border-t border-border space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={handleExport}
+              className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-border bg-secondary text-xs text-muted-foreground hover:text-foreground hover:border-primary/50 transition-all"
+            >
+              <Download className="w-3.5 h-3.5" />
+              导出存档
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-border bg-secondary text-xs text-muted-foreground hover:text-foreground hover:border-primary/50 transition-all"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              导入存档
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) handleImportFile(file)
+                e.target.value = ''
+              }}
+            />
+          </div>
           <button
             onClick={handleSave}
             className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-bold tracking-wider glow-btn"

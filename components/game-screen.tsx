@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import { Settings } from 'lucide-react'
 import { Character, AppSettings } from '@/lib/types'
-import { getSettings } from '@/lib/storage'
+import { getSettings, saveCharacter } from '@/lib/storage'
 import { CharacterCard } from '@/components/character-card'
 import { ChatPanel } from '@/components/chat-panel'
 import { ImagePanel } from '@/components/image-panel'
@@ -31,7 +31,11 @@ export function GameScreen({ character: initialCharacter, onReset }: GameScreenP
   }, [])
 
   const handleCharacterUpdate = useCallback((updates: Partial<Character>) => {
-    setCharacter((prev) => ({ ...prev, ...updates }))
+    setCharacter((prev) => {
+      const next = { ...prev, ...updates }
+      saveCharacter(next)
+      return next
+    })
   }, [])
 
   return (

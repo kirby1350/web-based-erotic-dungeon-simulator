@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Character } from '@/lib/types'
-import { getCharacter, saveCharacter, clearCharacter } from '@/lib/storage'
+import { getCharacter, saveCharacter, clearCharacter, clearSession } from '@/lib/storage'
 import { CharacterCreator } from '@/components/character-creator'
 import { GameScreen } from '@/components/game-screen'
 
@@ -23,6 +23,7 @@ export default function HomePage() {
 
   const handleReset = () => {
     clearCharacter()
+    clearSession()
     setCharacter(null)
   }
 

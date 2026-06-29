@@ -1,10 +1,13 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Loader2, BookOpen, Square, RotateCcw, Wrench, Zap } from 'lucide-react'
+import { Send, Loader2, BookOpen, Square, RotateCcw, Wrench, Zap, Sparkles } from 'lucide-react'
 import { Character, ChatMessage, AppSettings, BodyDevelopment, StatusEffect } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { getSession, saveSession } from '@/lib/storage'
+import { streamChatDeltas } from '@/lib/sse'
 import { TrapGenerator } from '@/components/trap-generator'
+import { StatusPicker } from '@/components/status-picker'
 
 const SUMMARY_THRESHOLD = 10
 const RECENT_KEEP = 4
@@ -121,22 +124,12 @@ async function fetchSummary(messages: ChatMessage[], model: string, apiKey: stri
     }),
   })
 
-  if (!res.ok) return ''
-  const reader = res.body!.getReader()
-  const decoder = new TextDecoder()
-  let text = ''
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    const chunk = decoder.decode(value)
-    for (const line of chunk.split('\n')) {
-      if (line.startsWith('data: ')) {
-        const d = line.slice(6).trim()
-        if (d === '[DONE]') continue
-        try { text += JSON.parse(d).choices?.[0]?.delta?.content || '' } catch { }
-      }
-    }
+  if (!res.ok) {
+    console.error('fetchSummary failed:', res.status)
+    return ''
   }
+  let text = ''
+  await streamChatDeltas(res, (delta) => { text += delta })
   return text.trim()
 }
 
@@ -230,6 +223,10 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
   const [lastUserInput, setLastUserInput] = useState<string>('')
   const [showToolMenu, setShowToolMenu] = useState(false)
   const [showTrapGenerator, setShowTrapGenerator] = useState(false)
+  const [showStatusPicker, setShowStatusPicker] = useState(false)
+  const [statsError, setStatsError] = useState('')
+  const restoredRef = useRef(false)
+  const summarisingRef = useRef(false)
   const abortRef = useRef<AbortController | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -240,22 +237,55 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
     }
   }, [messages, latestOptions])
 
+  // Restore a previously saved adventure (chat history + summary) on mount
+  useEffect(() => {
+    const session = getSession()
+    if (session && session.messages.length > 0) {
+      setMessages(session.messages)
+      setSummary(session.summary)
+      setStarted(true)
+      // rebuild the action buttons from the last DM reply
+      const lastAssistant = [...session.messages].reverse().find((m) => m.role === 'assistant')
+      if (lastAssistant) setLatestOptions(parseOptions(lastAssistant.content))
+    }
+    restoredRef.current = true
+  }, [])
+
+  // Persist the adventure after each completed turn (skip mid-stream churn)
+  useEffect(() => {
+    if (!restoredRef.current || !started || loading) return
+    if (messages.length === 0) return
+    saveSession({ messages, summary })
+  }, [messages, summary, started, loading])
+
   useEffect(() => {
     const assistantCount = messages.filter((m) => m.role === 'assistant').length
-    if (assistantCount > 0 && assistantCount % SUMMARY_THRESHOLD === 0 && !summarising && !loading) {
-      const toSummarise = messages.slice(0, messages.length - RECENT_KEEP)
-      if (toSummarise.length === 0) return
-      setSummarising(true)
-        fetchSummary(toSummarise, settings.chatModel, settings.chatApiKey || '', settings.grokApiKey || '')
-        .then((newSummary) => {
-          if (newSummary) {
-            setSummary((prev) => (prev ? `${prev}\n\n${newSummary}` : newSummary))
-            setMessages((prev) => prev.slice(-RECENT_KEEP))
-          }
-        })
-        .finally(() => setSummarising(false))
-    }
-  }, [messages, summarising, loading, settings.chatModel, settings.chatApiKey])
+    if (assistantCount === 0 || assistantCount % SUMMARY_THRESHOLD !== 0) return
+    // Ref lock: state updates are async, so `summarising` can still read false
+    // on a rapid re-render and double-fire. The ref flips synchronously.
+    if (summarisingRef.current || loading) return
+
+    const toSummarise = messages.slice(0, messages.length - RECENT_KEEP)
+    const removeCount = toSummarise.length
+    if (removeCount === 0) return
+
+    summarisingRef.current = true
+    setSummarising(true)
+    fetchSummary(toSummarise, settings.chatModel, settings.chatApiKey || '', settings.grokApiKey || '')
+      .then((newSummary) => {
+        if (newSummary) {
+          setSummary((prev) => (prev ? `${prev}\n\n${newSummary}` : newSummary))
+          // Drop exactly the messages we summarised (by count), preserving any
+          // new messages the user sent while the summary was in flight.
+          setMessages((prev) => prev.slice(removeCount))
+        }
+      })
+      .catch((e) => console.error('summarisation failed:', e))
+      .finally(() => {
+        summarisingRef.current = false
+        setSummarising(false)
+      })
+  }, [messages, loading, settings.chatModel, settings.chatApiKey, settings.grokApiKey])
 
   const sendMessage = useCallback(async (userText: string, isStart = false) => {
     if (loading) return
@@ -266,6 +296,7 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
     abortRef.current = controller
 
     setLatestOptions([])
+    setStatsError('')
     if (!isStart) setLastUserInput(userText)
 
     const userMsg: ChatMessage = {
@@ -312,30 +343,15 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
       const allMsgs = [...newMessages, assistantMsg]
       setMessages(allMsgs)
 
-      const reader = res.body!.getReader()
-      const decoder = new TextDecoder()
       let fullText = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        const chunk = decoder.decode(value)
-        for (const line of chunk.split('\n')) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6).trim()
-            if (data === '[DONE]') continue
-            try {
-              const delta = JSON.parse(data).choices?.[0]?.delta?.content || ''
-              fullText += delta
-              setMessages((prev) => {
-                const updated = [...prev]
-                updated[updated.length - 1] = { ...updated[updated.length - 1], content: fullText }
-                return updated
-              })
-            } catch { }
-          }
-        }
-      }
+      await streamChatDeltas(res, (delta) => {
+        fullText += delta
+        setMessages((prev) => {
+          const updated = [...prev]
+          updated[updated.length - 1] = { ...updated[updated.length - 1], content: fullText }
+          return updated
+        })
+      })
 
       // Parse [STATS]
       const statsJson = extractStatsJson(fullText)
@@ -391,7 +407,14 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
               }))
           }
           if (Object.keys(updates).length > 0) onCharacterUpdate(updates)
-        } catch { }
+        } catch (err) {
+          console.error('STATS JSON parse failed:', err, statsJson)
+          setStatsError('本回合角色数值更新失败（AI 输出的状态格式有误）')
+        }
+      } else if (/\[STATS/i.test(fullText)) {
+        // marker present but couldn't extract a usable object
+        console.error('STATS block present but unparseable')
+        setStatsError('本回合角色数值更新失败（AI 输出的状态格式有误）')
       }
 
       // Parse options
@@ -477,6 +500,17 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
           onClose={() => setShowTrapGenerator(false)}
         />
       )}
+      {/* Status Effect Picker Modal */}
+      {showStatusPicker && (
+        <StatusPicker
+          character={character}
+          onApply={(effects) => {
+            onCharacterUpdate({ statusEffects: effects })
+            setShowStatusPicker(false)
+          }}
+          onClose={() => setShowStatusPicker(false)}
+        />
+      )}
       {/* Summary indicator */}
       {(summary || summarising) && (
         <div className="px-4 py-2 border-b border-border flex items-center gap-2 text-xs text-muted-foreground bg-secondary/30">
@@ -489,6 +523,23 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
           ) : (
             <span className="truncate">故事摘要已生成（{messages.length} 条近期对话保留中）</span>
           )}
+        </div>
+      )}
+
+      {/* Stats parse warning */}
+      {statsError && (
+        <div className="px-4 py-2 border-b border-yellow-500/30 flex items-center justify-between gap-2 text-xs text-yellow-400 bg-yellow-500/10">
+          <span className="flex items-center gap-1.5">
+            <Square className="w-3 h-3 flex-shrink-0" />
+            {statsError}
+          </span>
+          <button
+            onClick={() => setStatsError('')}
+            className="text-yellow-400/70 hover:text-yellow-300 px-1"
+            title="忽略"
+          >
+            ✕
+          </button>
         </div>
       )}
 
@@ -591,6 +642,16 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
                 >
                   <Zap className="w-3.5 h-3.5 text-primary flex-shrink-0" />
                   <span>随机陷阱生成器</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowToolMenu(false)
+                    setShowStatusPicker(true)
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-left hover:bg-secondary transition-colors border-t border-border"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                  <span>施加异常状态</span>
                 </button>
               </div>
             )}

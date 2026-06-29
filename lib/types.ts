@@ -129,7 +129,16 @@ export const TENSORART_MODELS: Record<TensorArtModel, { label: string; modelId: 
   },
 }
 
-export const CHAT_MODELS: { value: string; label: string; group: string; provider: 'default' | 'grok' }[] = [
+// One model entry returned by the DZMM v2 models endpoint
+export interface DzmmModel {
+  id: string
+  name: string
+  context_window: number
+}
+
+export type ChatModelInfo = { value: string; label: string; group: string; provider: 'default' | 'grok' }
+
+export const CHAT_MODELS: ChatModelInfo[] = [
   // Max 系列 - 旗舰 ($0.0004/1K tokens)
   { value: 'nalang-max-0826-10k', label: 'Nalang Max 10K', group: 'Max 旗舰系列', provider: 'default' },
   { value: 'nalang-max-0826-16k', label: 'Nalang Max 16K（推荐）', group: 'Max 旗舰系列', provider: 'default' },
@@ -174,6 +183,86 @@ export interface CharacterPreset {
   otherDescription: string
   avatarUrl?: string
 }
+
+// Persisted adventure session (chat history + rolling summary)
+export interface GameSession {
+  messages: ChatMessage[]
+  summary: string
+}
+
+// Preset trap "seeds" — pick one to steer the random generator toward a type,
+// instead of fully random. Keeps the AI tailoring to current character state.
+export interface PresetTrap {
+  id: string
+  name: string
+  category: string
+  // short directive describing the trap type, injected into the generator prompt
+  hint: string
+}
+
+export const PRESET_TRAPS: PresetTrap[] = [
+  {
+    id: 'tentacle_pit',
+    name: '触手深渊',
+    category: '触手系',
+    hint: '异形触手从地面、墙壁与天花板同时涌出，缠绕四肢并强制贯穿各个孔穴、注入黏滑体液',
+  },
+  {
+    id: 'slime_swallow',
+    name: '史莱姆吞噬',
+    category: '粘液系',
+    hint: '半透明史莱姆将全身包裹溶解衣物，粘液渗入每一寸肌肤与孔穴，持续震动摩擦敏感部位',
+  },
+  {
+    id: 'pollen_garden',
+    name: '催情花园',
+    category: '催情植物',
+    hint: '大片催情花朵喷出浓密花粉与花蜜，藤蔓束缚身体，花粉令理智迅速瓦解、身体极度敏感',
+  },
+  {
+    id: 'lewd_rune',
+    name: '淫纹拘束',
+    category: '魔法拘束',
+    hint: '地面浮现魔法淫纹，无形力量将身体固定成屈辱姿势，淫纹持续发烫、强制提升欲望与快感',
+  },
+  {
+    id: 'succubus_mirror',
+    name: '魅魔之镜',
+    category: '催眠幻觉',
+    hint: '古镜中浮现魅魔，以催眠话语支配意识，制造无法分辨真假的极淫幻觉并诱导主动堕落',
+  },
+  {
+    id: 'parasite_egg',
+    name: '寄生产卵',
+    category: '寄生/产卵',
+    hint: '寄生型生物钻入体内，向子宫与肠道注入大量卵，腹部隆起、被迫感受异物蠕动与产卵快感',
+  },
+  {
+    id: 'ancient_machine',
+    name: '远古拘束装置',
+    category: '机械',
+    hint: '遗迹中的机械装置自动启动，金属拘束具固定四肢，机械触手与按摩棒按程序持续强制高潮',
+  },
+  {
+    id: 'orc_nest',
+    name: '半兽人巢穴',
+    category: '怪物巢穴',
+    hint: '误入半兽人巢穴，被成群粗壮的半兽人按住轮流侵犯，浓厚精液灌满每一个孔穴',
+  },
+]
+
+// Preset 异常状态 the player can manually apply; these feed straight into
+// the system prompt's 异常状态 line and steer narration/options.
+export const PRESET_STATUS_EFFECTS: StatusEffect[] = [
+  { id: 'estrus', title: '发情', description: '身体进入发情期，主动扭腰求欢，骚穴不断流水' },
+  { id: 'aphrodisiac', title: '媚药中毒', description: '全身敏感度暴涨，轻微触碰即引发强烈快感，理智逐渐瓦解' },
+  { id: 'bondage', title: '拘束', description: '四肢被缚无法自由行动，只能任人摆布' },
+  { id: 'hypnosis', title: '催眠', description: '意识被支配，会无意识地服从命令' },
+  { id: 'lewd_brand', title: '淫纹', description: '身上浮现发烫的淫纹，持续提升欲望并削弱抵抗' },
+  { id: 'lactation', title: '泌乳', description: '乳房胀大不断分泌乳汁，乳头极度敏感' },
+  { id: 'broken', title: '绝顶崩坏', description: '连续高潮导致理智崩坏，露出ahegao表情，无法正常思考' },
+  { id: 'pregnancy_heat', title: '渴孕', description: '子宫深处传来灼热的受孕渴望，主动迎合内射' },
+]
 
 export const CHARACTER_PRESETS: CharacterPreset[] = [
   {

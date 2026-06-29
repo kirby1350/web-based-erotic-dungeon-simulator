@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
-import { Loader2, RefreshCw, Check, X, Zap } from 'lucide-react'
-import { Character } from '@/lib/types'
+import { useState, useCallback, useEffect, useRef } from 'react'
+import { Loader2, RefreshCw, Check, X, Zap, Shuffle } from 'lucide-react'
+import { Character, PRESET_TRAPS } from '@/lib/types'
+import { streamChatDeltas } from '@/lib/sse'
 import { cn } from '@/lib/utils'
 
 interface TrapGeneratorProps {
@@ -12,19 +13,13 @@ interface TrapGeneratorProps {
   onClose: () => void
 }
 
-function buildRandomTrapPrompt(character: Character, currentLocation = '未知区域'): string {
+function buildRandomTrapPrompt(character: Character, hint?: string, currentLocation = '未知区域'): string {
   const bd = character.bodyDevelopment ?? { breast: 0, clitoris: 0, vagina: 0, anus: 0 }
   const se = character.statusEffects ?? []
-  return `你现在是「极致色情随机陷阱生成器」，必须生成一个全新、随机、高度色情的地下城陷阱事件。
-
-当前玩家：${character.name}（${character.race}）
-当前状态：快感度 ${character.pleasure}/100，欲望值 ${character.desire}/100
-身体开发度：胸部Lv${bd.breast ?? 0}、阴蒂Lv${bd.clitoris ?? 0}、阴道Lv${bd.vagina ?? 0}、肛门Lv${bd.anus ?? 0}
-当前异常状态：${se.map((s) => s.title).join('、') || '无'}
-当前位置：${currentLocation}
-
-【生成要求】
-1. 随机选择一种陷阱类型（不可重复使用最近用过的），类型包括但不限于：
+  const typeRule = hint
+    ? `1. 本次必须生成以下指定类型的陷阱（根据玩家当前状态自由发挥细节）：
+   ${hint}`
+    : `1. 随机选择一种陷阱类型（不可重复使用最近用过的），类型包括但不限于：
    - 触手系（普通/异形/寄生）
    - 粘液/史莱姆系
    - 催情植物/花粉/香气
@@ -33,7 +28,17 @@ function buildRandomTrapPrompt(character: Character, currentLocation = '未知�
    - 机械/古代遗迹拘束装置
    - 催眠/幻觉镜子/魅魔领域
    - 寄生虫/卵注入系
-   - 其他你能想到的重口色情陷阱
+   - 其他你能想到的重口色情陷阱`
+  return `你现在是「极致色情随机陷阱生成器」，必须生成一个全新、高度色情的地下城陷阱事件。
+
+当前玩家：${character.name}（${character.race}）
+当前状态：快感度 ${character.pleasure}/100，欲望值 ${character.desire}/100
+身体开发度：胸部Lv${bd.breast ?? 0}、阴蒂Lv${bd.clitoris ?? 0}、阴道Lv${bd.vagina ?? 0}、肛门Lv${bd.anus ?? 0}
+当前异常状态：${se.map((s) => s.title).join('、') || '无'}
+当前位置：${currentLocation}
+
+【生成要求】
+${typeRule}
 
 2. 生成内容必须包含：
    - 陷阱名称（带色情味）
@@ -55,13 +60,17 @@ export function TrapGenerator({ character, settings, onConfirm, onClose }: TrapG
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<string>('')
   const [error, setError] = useState<string>('')
+  const [activePreset, setActivePreset] = useState<string | null>(null)
+  // remember the last hint so 「重新生成」 keeps the chosen trap type
+  const lastHintRef = useRef<string | undefined>(undefined)
 
-  const generate = useCallback(async () => {
+  const generate = useCallback(async (hint?: string) => {
+    lastHintRef.current = hint
     setLoading(true)
     setError('')
     setResult('')
 
-    const prompt = buildRandomTrapPrompt(character)
+    const prompt = buildRandomTrapPrompt(character, hint)
 
     try {
       const res = await fetch('/api/chat', {
@@ -82,26 +91,11 @@ export function TrapGenerator({ character, settings, onConfirm, onClose }: TrapG
         throw new Error(err.error || '生成失败')
       }
 
-      const reader = res.body!.getReader()
-      const decoder = new TextDecoder()
       let fullText = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        const chunk = decoder.decode(value)
-        for (const line of chunk.split('\n')) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6).trim()
-            if (data === '[DONE]') continue
-            try {
-              const delta = JSON.parse(data).choices?.[0]?.delta?.content || ''
-              fullText += delta
-              setResult(fullText)
-            } catch { }
-          }
-        }
-      }
+      await streamChatDeltas(res, (delta) => {
+        fullText += delta
+        setResult(fullText)
+      })
     } catch (e) {
       setError(String(e))
     } finally {
@@ -157,6 +151,39 @@ export function TrapGenerator({ character, settings, onConfirm, onClose }: TrapG
           </button>
         </div>
 
+        {/* Preset type chips */}
+        <div className="px-4 pt-3 flex flex-wrap gap-1.5 flex-shrink-0">
+          <button
+            onClick={() => { setActivePreset(null); generate() }}
+            disabled={loading}
+            className={cn(
+              'flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs transition-colors disabled:opacity-40',
+              activePreset === null
+                ? 'border-primary/60 bg-primary/10 text-primary'
+                : 'border-border bg-secondary text-muted-foreground hover:border-primary/40'
+            )}
+          >
+            <Shuffle className="w-3 h-3" />
+            完全随机
+          </button>
+          {PRESET_TRAPS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => { setActivePreset(t.id); generate(t.hint) }}
+              disabled={loading}
+              title={t.hint}
+              className={cn(
+                'px-2.5 py-1 rounded-full border text-xs transition-colors disabled:opacity-40',
+                activePreset === t.id
+                  ? 'border-primary/60 bg-primary/10 text-primary'
+                  : 'border-border bg-secondary text-muted-foreground hover:border-primary/40'
+              )}
+            >
+              {t.name}
+            </button>
+          ))}
+        </div>
+
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4">
           {loading && result === '' && (
@@ -192,7 +219,7 @@ export function TrapGenerator({ character, settings, onConfirm, onClose }: TrapG
         {!loading && (result || error) && (
           <div className="px-4 py-3 border-t border-border flex gap-2 flex-shrink-0">
             <button
-              onClick={generate}
+              onClick={() => generate(lastHintRef.current)}
               className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-secondary text-secondary-foreground text-sm hover:border-primary/50 hover:bg-secondary/80 transition-all"
             >
               <RefreshCw className="w-3.5 h-3.5" />

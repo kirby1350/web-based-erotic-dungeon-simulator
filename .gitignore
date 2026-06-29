@@ -9,3 +9,7 @@ node_modules/
 .env*.local
 .DS_Store
 .vercel
+
+# IDE / build artifacts
+.idea/
+*.tsbuildinfo
