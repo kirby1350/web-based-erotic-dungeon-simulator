@@ -76,7 +76,7 @@ export interface GeneratedImage {
 }
 
 export type ImageStyle = 'none' | 'dk.senie' | 'hakai_shin' | 'shiokonbu' | 'piromizu' | 'nohito' | 'masami_chie' | 'thirty_8ght'
-export type ImageModel = 'haruka_v2' | 'jankuv5' | 'wai_nsfw'
+export type ImageModel = 'tsubaki_v2'
 
 export type ImageProvider = 'pixai' | 'tensorart'
 
@@ -109,17 +109,9 @@ export interface AppSettings {
 }
 
 export const IMAGE_MODELS: Record<ImageModel, { label: string; modelId: string }> = {
-  haruka_v2: {
-    label: 'Haruka v2',
-    modelId: '1861558740588989558',
-  },
-  jankuv5: {
-    label: 'JANKUV5',
-    modelId: '1935381284613355700',
-  },
-  wai_nsfw: {
-    label: 'WAI-NSFW-illustrious-SDXL',
-    modelId: '1799568502408553127',
+  tsubaki_v2: {
+    label: 'Tsubaki v2',
+    modelId: '1982880136609467518',
   },
 }
 

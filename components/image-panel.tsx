@@ -115,7 +115,7 @@ export function ImagePanel({ settings, character, pendingScene, onSceneHandled }
         if (!jobId) throw new Error('未获取到 TensorArt Job ID')
         imageUrls = await pollTensorart(jobId)
       } else {
-        const modelId = (IMAGE_MODELS[settings.imageModel] ?? IMAGE_MODELS['haruka_v2']).modelId
+        const modelId = (IMAGE_MODELS[settings.imageModel] ?? IMAGE_MODELS['tsubaki_v2']).modelId
         const res = await fetch('/api/image/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
