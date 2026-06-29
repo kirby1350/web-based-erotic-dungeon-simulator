@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Loader2, BookOpen, Square, RotateCcw, Wrench, Zap, Sparkles, ShieldAlert, Unlock } from 'lucide-react'
+import { Send, Loader2, BookOpen, Square, RotateCcw, Wrench, Zap, Sparkles, ShieldAlert, Unlock, HeartCrack } from 'lucide-react'
 import { Character, ChatMessage, AppSettings, BodyDevelopment, BodyPart, StatusEffect } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { getSession, saveSession } from '@/lib/storage'
@@ -471,6 +471,12 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
     sendMessage(`${character.name}拼尽全力挣扎，奋力挣脱束缚、突破当前的${character.encounter.name}，逃脱、逃离这个遭遇！`)
   }
 
+  // Surrender button — let the encounter ruin and discard her, then it ends.
+  const acceptBroken = () => {
+    if (loading || !character.encounter) return
+    sendMessage(`${character.name}彻底放弃抵抗，张开身体迎接${character.encounter.name}的肆意蹂躏，任由自己被玩弄、榨干到精神彻底崩坏，直到对方玩腻后，将这具失神瘫软、淫液淋漓的躯体随意丢弃在一旁。（请详细描写她被玩坏丢弃的过程，并在结束后让她脱离当前遭遇）`)
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -544,15 +550,26 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
                 </p>
               )}
             </div>
-            <button
-              onClick={attemptEscape}
-              disabled={loading}
-              title="全力挣脱当前束缚"
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-400/50 bg-rose-500/15 text-rose-200 text-xs font-bold hover:bg-rose-500/25 hover:border-rose-300 transition-all disabled:opacity-40 flex-shrink-0"
-            >
-              <Unlock className="w-3.5 h-3.5" />
-              奋力挣脱
-            </button>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button
+                onClick={attemptEscape}
+                disabled={loading}
+                title="全力挣脱当前束缚"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-400/50 bg-rose-500/15 text-rose-200 text-xs font-bold hover:bg-rose-500/25 hover:border-rose-300 transition-all disabled:opacity-40"
+              >
+                <Unlock className="w-3.5 h-3.5" />
+                奋力挣脱
+              </button>
+              <button
+                onClick={acceptBroken}
+                disabled={loading}
+                title="放弃抵抗，被玩坏后丢弃"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-purple-400/40 bg-purple-500/15 text-purple-200 text-xs font-bold hover:bg-purple-500/25 hover:border-purple-300 transition-all disabled:opacity-40"
+              >
+                <HeartCrack className="w-3.5 h-3.5" />
+                被玩坏丢掉
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -697,7 +714,7 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-left hover:bg-secondary transition-colors border-t border-border"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                  <span>施加异常状态</span>
+                  <span>异常状态管理</span>
                 </button>
               </div>
             )}

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { Loader2, RefreshCw, Check, X, Zap, Shuffle } from 'lucide-react'
-import { Character, PRESET_TRAPS } from '@/lib/types'
+import { Character, PRESET_TRAPS, getFloorTheme } from '@/lib/types'
 import { streamChatDeltas } from '@/lib/sse'
 import { cn } from '@/lib/utils'
 import { buildRandomTrapPrompt } from '@/lib/prompts'
@@ -28,7 +28,9 @@ export function TrapGenerator({ character, settings, onConfirm, onClose }: TrapG
     setError('')
     setResult('')
 
-    const prompt = buildRandomTrapPrompt(character, hint, `地下城第 ${character.floor ?? 1} 层`)
+    const floorNo = character.floor ?? 1
+    const theme = getFloorTheme(character.floorThemes, floorNo)
+    const prompt = buildRandomTrapPrompt(character, hint, `地下城第 ${floorNo} 层「${theme.name}」（${theme.ambience}）`)
 
     try {
       const res = await fetch('/api/chat', {
@@ -86,12 +88,6 @@ export function TrapGenerator({ character, settings, onConfirm, onClose }: TrapG
     return out.trim()
   }
 
-  // On first render, auto-generate
-  useEffect(() => {
-    generate()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
       <div className="w-full max-w-lg dungeon-border rounded-xl bg-card flex flex-col max-h-[80vh]">
@@ -144,6 +140,13 @@ export function TrapGenerator({ character, settings, onConfirm, onClose }: TrapG
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4">
+          {!loading && !result && !error && (
+            <div className="flex flex-col items-center justify-center gap-2 py-12 text-center text-muted-foreground">
+              <Zap className="w-6 h-6 text-primary/50" />
+              <span className="text-sm">选择上方的陷阱类型，或点击「完全随机」开始生成</span>
+            </div>
+          )}
+
           {loading && result === '' && (
             <div className="flex flex-col items-center justify-center gap-3 py-12 text-muted-foreground">
               <Loader2 className="w-6 h-6 animate-spin text-primary" />

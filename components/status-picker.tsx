@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Check, Sparkles, Trash2 } from 'lucide-react'
+import { X, Check, Sparkles, Trash2, Plus } from 'lucide-react'
 import { Character, StatusEffect, PRESET_STATUS_EFFECTS } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -15,6 +15,8 @@ const PRESET_IDS = new Set(PRESET_STATUS_EFFECTS.map((s) => s.id))
 
 export function StatusPicker({ character, onApply, onClose }: StatusPickerProps) {
   const [effects, setEffects] = useState<StatusEffect[]>(character.statusEffects ?? [])
+  const [newTitle, setNewTitle] = useState('')
+  const [newDesc, setNewDesc] = useState('')
 
   const has = (id: string) => effects.some((e) => e.id === id)
 
@@ -30,6 +32,18 @@ export function StatusPicker({ character, onApply, onClose }: StatusPickerProps)
     setEffects((prev) => prev.filter((e) => e.id !== id))
   }
 
+  const addCustom = () => {
+    const title = newTitle.trim()
+    if (!title) return
+    const base = title.replace(/\s+/g, '_').toLowerCase() || 'custom'
+    let id = base
+    let n = 1
+    while (effects.some((e) => e.id === id)) id = `${base}_${n++}`
+    setEffects((prev) => [...prev, { id, title, description: newDesc.trim() }])
+    setNewTitle('')
+    setNewDesc('')
+  }
+
   // status effects on the character that aren't from the preset list (AI-generated)
   const customEffects = effects.filter((e) => !PRESET_IDS.has(e.id))
 
@@ -40,7 +54,7 @@ export function StatusPicker({ character, onApply, onClose }: StatusPickerProps)
         <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-primary" />
-            <span className="font-bold text-sm tracking-wider gold-text">施加异常状态</span>
+            <span className="font-bold text-sm tracking-wider gold-text">异常状态管理</span>
           </div>
           <button
             onClick={onClose}
@@ -113,6 +127,33 @@ export function StatusPicker({ character, onApply, onClose }: StatusPickerProps)
               ))}
             </div>
           )}
+
+          {/* Add a custom status */}
+          <div className="space-y-2 border-t border-border pt-3">
+            <p className="text-xs text-muted-foreground tracking-wider">添加自定义状态</p>
+            <input
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') addCustom() }}
+              placeholder="状态名称（如：母乳奴隶）"
+              className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
+            />
+            <input
+              value={newDesc}
+              onChange={(e) => setNewDesc(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') addCustom() }}
+              placeholder="状态描述（选填）"
+              className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
+            />
+            <button
+              onClick={addCustom}
+              disabled={!newTitle.trim()}
+              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-border bg-secondary text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 disabled:opacity-40 transition-all"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              添加状态
+            </button>
+          </div>
         </div>
 
         {/* Actions */}
