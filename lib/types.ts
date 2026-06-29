@@ -111,7 +111,7 @@ export interface AppSettings {
 export const IMAGE_MODELS: Record<ImageModel, { label: string; modelId: string }> = {
   tsubaki_v2: {
     label: 'Tsubaki v2',
-    modelId: '1982880136609467518',
+    modelId: '1983308862240288769',
   },
 }
 
