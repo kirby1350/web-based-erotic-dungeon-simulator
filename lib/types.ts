@@ -400,6 +400,7 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
   {
     name: '鹭泽文香',
     race: 'human',
+    avatarUrl: '/avatars/sagisawa-fumika.png',
     measurements: { bust: '86', waist: '57', hip: '85' },
     danbooruTags: 'sagisawa_fumika, idolmaster_cinderella_girls, 1girl, very long hair, black hair, blunt bangs, brown eyes, pale skin, large breasts, cardigan, holding book',
     backstory: '二十岁的沉静文学少女兼偶像，平日里寡言慵懒，最爱抱着一本厚重的旧书蜷在角落静静阅读。她因翻开一卷不该读的禁忌古籍而被吸入地下城。清冷疏离的外表下，藏着与那身书卷气极不相称的、被长久压抑的旺盛情欲——她那看似永远困倦半阖的双眸深处，是一具敏感到一碰就溃堤的身体，与一颗渴望被彻底玷污、被狠狠贯穿的重度抖 M 之心。',
