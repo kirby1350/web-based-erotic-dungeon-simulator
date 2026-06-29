@@ -3,7 +3,8 @@
 import { useState, useCallback } from 'react'
 import { Image as ImageIcon, Loader2, RefreshCw, Wand2, ChevronDown, ChevronUp } from 'lucide-react'
 import { AppSettings, IMAGE_MODELS, IMAGE_STYLES, IMAGE_TAG_PRESETS, TENSORART_MODELS, Character } from '@/lib/types'
-import { DEFAULT_SCENE_PROMPT } from '@/lib/prompts'
+import { DEFAULT_SCENE_PROMPT, IMAGE_NEGATIVE_PROMPT } from '@/lib/prompts'
+import { dzmmReady, dzmmDraw } from '@/lib/dzmm'
 
 interface ImagePanelProps {
   settings: AppSettings
@@ -84,7 +85,15 @@ export function ImagePanel({ settings, character, pendingScene, onSceneHandled }
       const provider = settings.imageProvider ?? 'pixai'
       let imageUrls: string[]
 
-      if (provider === 'tensorart') {
+      if (await dzmmReady()) {
+        // On the DZMM platform: generate via the injected SDK (no polling/keys).
+        imageUrls = await dzmmDraw({
+          prompt: finalPrompt,
+          negativePrompt: IMAGE_NEGATIVE_PROMPT,
+          dimension: 'portrait',
+        })
+        if (imageUrls.length === 0) throw new Error('图片生成完成但未返回图片')
+      } else if (provider === 'tensorart') {
         const taModel = TENSORART_MODELS[settings.tensorartModel] ?? TENSORART_MODELS['wai_nsfw_v16']
         const res = await fetch('/api/image/tensorart', {
           method: 'POST',

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Character } from '@/lib/types'
 import { getCharacter, saveCharacter, clearCharacter, clearSession } from '@/lib/storage'
+import { dzmmReady } from '@/lib/dzmm'
 import { CharacterCreator } from '@/components/character-creator'
 import { GameScreen } from '@/components/game-screen'
 
@@ -11,6 +12,8 @@ export default function HomePage() {
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
+    // Start the DZMM iframe handshake ASAP (no-op / fast self-host fallback off-platform)
+    dzmmReady()
     const saved = getCharacter()
     if (saved) setCharacter(saved)
     setLoaded(true)

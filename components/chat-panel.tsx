@@ -5,7 +5,7 @@ import { Send, Loader2, BookOpen, Square, RotateCcw, Wrench, Zap, Sparkles, Shie
 import { Character, ChatMessage, AppSettings, BodyDevelopment, BodyPart, StatusEffect } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { getSession, saveSession } from '@/lib/storage'
-import { streamChatDeltas } from '@/lib/sse'
+import { chatStream } from '@/lib/dzmm'
 import {
   buildSystemPrompt,
   buildSummaryUserPrompt,
@@ -30,26 +30,24 @@ async function fetchSummary(messages: ChatMessage[], model: string, apiKey: stri
     .map((m) => `${m.role === 'user' ? '玩家' : '地下城主'}：${m.content}`)
     .join('\n')
 
-  const res = await fetch('/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      messages: [
-        { role: 'system', content: SUMMARY_SYSTEM_PROMPT },
-        { role: 'user', content: buildSummaryUserPrompt(conversation) },
-      ],
-      model,
-      apiKey,
-      grokApiKey,
-    }),
-  })
-
-  if (!res.ok) {
-    console.error('fetchSummary failed:', res.status)
+  let text = ''
+  try {
+    await chatStream(
+      {
+        messages: [
+          { role: 'system', content: SUMMARY_SYSTEM_PROMPT },
+          { role: 'user', content: buildSummaryUserPrompt(conversation) },
+        ],
+        model,
+        apiKey,
+        grokApiKey,
+      },
+      (delta) => { text += delta },
+    )
+  } catch (e) {
+    console.error('fetchSummary failed:', e)
     return ''
   }
-  let text = ''
-  await streamChatDeltas(res, (delta) => { text += delta })
   return text.trim()
 }
 
@@ -293,36 +291,28 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
     ]
 
     try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: apiMessages,
-          model: settings.chatModel,
-          apiKey: settings.chatApiKey,
-          grokApiKey: settings.grokApiKey,
-        }),
-        signal: controller.signal,
-      })
-
-      if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error || '请求失败')
-      }
-
       const assistantMsg: ChatMessage = { role: 'assistant', content: '', timestamp: Date.now() }
       const allMsgs = [...newMessages, assistantMsg]
       setMessages(allMsgs)
 
       let fullText = ''
-      await streamChatDeltas(res, (delta) => {
-        fullText += delta
-        setMessages((prev) => {
-          const updated = [...prev]
-          updated[updated.length - 1] = { ...updated[updated.length - 1], content: fullText }
-          return updated
-        })
-      })
+      await chatStream(
+        {
+          messages: apiMessages,
+          model: settings.chatModel,
+          apiKey: settings.chatApiKey,
+          grokApiKey: settings.grokApiKey,
+          signal: controller.signal,
+        },
+        (delta) => {
+          fullText += delta
+          setMessages((prev) => {
+            const updated = [...prev]
+            updated[updated.length - 1] = { ...updated[updated.length - 1], content: fullText }
+            return updated
+          })
+        },
+      )
 
       // Parse [STATS] (lightweight numeric core)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

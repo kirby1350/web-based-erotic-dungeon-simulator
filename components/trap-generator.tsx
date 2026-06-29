@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef } from 'react'
 import { Loader2, RefreshCw, Check, X, Zap, Shuffle } from 'lucide-react'
 import { Character, PRESET_TRAPS, getFloorTheme } from '@/lib/types'
-import { streamChatDeltas } from '@/lib/sse'
+import { chatStream } from '@/lib/dzmm'
 import { cn } from '@/lib/utils'
 import { buildRandomTrapPrompt } from '@/lib/prompts'
 
@@ -33,29 +33,19 @@ export function TrapGenerator({ character, settings, onConfirm, onClose }: TrapG
     const prompt = buildRandomTrapPrompt(character, hint, `地下城第 ${floorNo} 层「${theme.name}」（${theme.ambience}）`)
 
     try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [
-            { role: 'user', content: prompt },
-          ],
+      let fullText = ''
+      await chatStream(
+        {
+          messages: [{ role: 'user', content: prompt }],
           model: settings.chatModel,
           apiKey: settings.chatApiKey,
           grokApiKey: settings.grokApiKey ?? '',
-        }),
-      })
-
-      if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error || '生成失败')
-      }
-
-      let fullText = ''
-      await streamChatDeltas(res, (delta) => {
-        fullText += delta
-        setResult(fullText)
-      })
+        },
+        (delta) => {
+          fullText += delta
+          setResult(fullText)
+        },
+      )
     } catch (e) {
       setError(String(e))
     } finally {
