@@ -467,6 +467,12 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
     sendMessage(`${character.name}彻底放弃抵抗，张开身体迎接${character.encounter.name}的肆意蹂躏，任由自己被玩弄、榨干到精神彻底崩坏，直到对方玩腻后，将这具失神瘫软、淫液淋漓的躯体随意丢弃在一旁。（请详细描写她被玩坏丢弃的过程，并在结束后让她脱离当前遭遇）`)
   }
 
+  // In-fiction attempt to dispel a status effect — the DM judges success by current state.
+  const attemptDispel = (effect: StatusEffect) => {
+    if (loading) return
+    sendMessage(`${character.name}咬紧牙关，试图凝聚意志驱散身上的「${effect.title}」状态（${effect.description}）……（请依据她当前的快感、欲望与身体开发度判定能否解除：越契合当前处境越难解，欲望或快感过高时几乎无法靠意志摆脱。成功则在 [STATS] 的 statusEffects 中移除「${effect.title}」，失败则保留并加剧）`)
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -561,6 +567,25 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Active status effects — click a chip to attempt dispelling it in-fiction */}
+      {character.statusEffects && character.statusEffects.length > 0 && (
+        <div className="px-4 py-2 border-b border-yellow-500/20 bg-yellow-500/5 flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] uppercase tracking-widest text-yellow-400/60 mr-0.5">异常状态 · 点击尝试解除</span>
+          {character.statusEffects.map((e) => (
+            <button
+              key={e.id}
+              onClick={() => attemptDispel(e)}
+              disabled={loading}
+              title={`尝试解除：${e.description || e.title}`}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-full border border-yellow-500/30 bg-yellow-500/10 text-yellow-200 text-[11px] hover:bg-yellow-500/20 hover:border-yellow-400/50 disabled:opacity-40 transition-all"
+            >
+              {e.title}
+              <Unlock className="w-2.5 h-2.5 opacity-60" />
+            </button>
+          ))}
         </div>
       )}
 
