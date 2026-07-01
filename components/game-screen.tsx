@@ -1,8 +1,12 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { Settings } from 'lucide-react'
 import { Character, AppSettings } from '@/lib/types'
+
+// Bridge so the exploration buttons (rendered in CharacterCard, next to the progress bar)
+// can invoke ChatPanel's explore/advance handlers, which need ChatPanel's internal sendMessage.
+export type ExploreActions = { explore: () => void; advanceFloor: () => void }
 import { getSettings, saveCharacter } from '@/lib/storage'
 import { CharacterCard } from '@/components/character-card'
 import { ChatPanel } from '@/components/chat-panel'
@@ -20,6 +24,9 @@ export function GameScreen({ character: initialCharacter, onReset }: GameScreenP
   const [showSettings, setShowSettings] = useState(false)
   const [pendingScene, setPendingScene] = useState<string | undefined>()
   const [activeTab, setActiveTab] = useState<'chat' | 'image'>('chat')
+  // separate bridges for the desktop and mobile ChatPanel instances (both mount)
+  const desktopActions = useRef<ExploreActions>({ explore: () => {}, advanceFloor: () => {} })
+  const mobileActions = useRef<ExploreActions>({ explore: () => {}, advanceFloor: () => {} })
 
   const handleRequestImage = useCallback((scene: string) => {
     setPendingScene(scene)
@@ -58,13 +65,19 @@ export function GameScreen({ character: initialCharacter, onReset }: GameScreenP
         <div className="hidden md:flex flex-1 overflow-hidden">
           {/* Left: character info + chat */}
           <div className="w-[55%] flex flex-col border-r border-border overflow-hidden">
-            <CharacterCard character={character} onReset={onReset} />
+            <CharacterCard
+              character={character}
+              onReset={onReset}
+              onExplore={() => desktopActions.current.explore()}
+              onAdvanceFloor={() => desktopActions.current.advanceFloor()}
+            />
             <div className="flex-1 overflow-hidden">
               <ChatPanel
                 character={character}
                 settings={settings}
                 onRequestImage={handleRequestImage}
                 onCharacterUpdate={handleCharacterUpdate}
+                exploreActionsRef={desktopActions}
               />
             </div>
           </div>
@@ -101,7 +114,12 @@ export function GameScreen({ character: initialCharacter, onReset }: GameScreenP
             ))}
           </div>
 
-          <CharacterCard character={character} onReset={onReset} />
+          <CharacterCard
+            character={character}
+            onReset={onReset}
+            onExplore={() => mobileActions.current.explore()}
+            onAdvanceFloor={() => mobileActions.current.advanceFloor()}
+          />
 
           <div className="flex-1 overflow-hidden">
             {activeTab === 'chat' ? (
@@ -110,6 +128,7 @@ export function GameScreen({ character: initialCharacter, onReset }: GameScreenP
                 settings={settings}
                 onRequestImage={handleRequestImage}
                 onCharacterUpdate={handleCharacterUpdate}
+                exploreActionsRef={mobileActions}
               />
             ) : (
               <ImagePanel

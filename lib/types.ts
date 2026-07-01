@@ -1,4 +1,4 @@
-export type Race = 'human' | 'elf' | 'tauren'
+export type Race = 'human' | 'elf' | 'tauren' | 'fox' | 'cat' | 'machine'
 
 export interface CharacterMeasurements {
   bust: string
@@ -60,7 +60,13 @@ export interface Character {
   floorThemes?: string[]
   // current trap/monster encounter, or null when free
   encounter?: Encounter | null
+  // exploration progress of the CURRENT floor, 0-100; must hit 100 to descend, resets on floor change
+  explorationProgress?: number
 }
+
+// exploration progress gained per action toward unlocking the next floor
+export const EXPLORE_GAIN = 20 // one "探索" action
+export const ENCOUNTER_CLEAR_GAIN = 40 // escaping a trap or being played-to-broken (encounter resolved)
 
 export interface ChatMessage {
   role: 'user' | 'assistant'
@@ -214,6 +220,21 @@ export const RACE_INFO: Record<Race, { label: string; description: string; trait
     description: '体魄强健、血脉旺盛——寻常束缚难困，可一旦发情便如野兽般疯狂，天生易泌乳。',
     trait: '体魄强健、萨满血脉旺盛：HP 与物理耐受高，寻常束缚更难困住她；却因发情血脉而欲望一旦点燃便如野兽般疯狂。天生巨乳易泌乳，适合大量产乳、孕感、被强健怪物压制征服的描写。',
   },
+  fox: {
+    label: '狐族',
+    description: '媚惑亲和、生性淫荡——耳尾极度敏感，越是被抚弄越会主动发情，天生适合媚态求欢。',
+    trait: '妖狐血脉、媚惑亲和：耳朵与尾巴是最大的敏感带，被抚摸揉捏便浑身酥软、理智融化。天生的发情体质令欲望上涨极快、极易泌淫水与潮吹，且越是高潮越会本能地摇尾迎合、主动献媚求欢。适合媚态调教、发情失禁、被养成媚狐宠物的描写。',
+  },
+  cat: {
+    label: '猫族',
+    description: '傲娇难驯、体质敏感——发情期一到便撒娇求欢，被摸到弱点便瞬间瘫软发出猫叫。',
+    trait: '猫又血脉、傲娇难驯：平日高傲不肯服软，可耳后、尾根、下腹一被触碰便瞬间瘫软、喉间漏出猫叫。发情期身体格外燥热敏感、会不自觉地翘臀磨蹭求欢，被彻底攻陷后会像发情母猫般主动索求。适合傲娇反差、撒娇发情、被驯化成粘人母猫的描写。',
+  },
+  machine: {
+    label: '机械族',
+    description: '痛感转快感、可被改造——身体像器械般任人拆解校准，强制高潮如同例行维护。',
+    trait: '人造机械之躯、痛觉回路错乱为快感：身体可被当作器械般拆解、加装、改造，敏感部位能被「校准」到不断升高。缺乏常人的羞耻阈值却有被格式化、被写入淫乱指令的恐惧，强制连续高潮对她如同例行「维护/充能」。适合机械改造、催眠调校、被当作性爱器械反复使用的描写。',
+  },
 }
 
 // ---------------------------------------------------------------------------
@@ -244,6 +265,16 @@ export const FLOOR_THEMES: FloorTheme[] = [
   { name: '媚药温泉', ambience: '雾气蒸腾的地底媚药温泉，温热泉水浸透全身、敏感度暴涨', scene: 'hot spring, steam, water, cave, aphrodisiac, wet' },
   { name: '蛛网囚牢', ambience: '巨蛛盘踞的丝网囚牢，黏丝层层捆缚、动弹不得', scene: 'spider web, bondage, silk, cocoon, dark, restrained' },
   { name: '梦魇卧房', ambience: '诡异奢靡的梦魇卧房，催眠香氛令人分不清现实与春梦', scene: 'bedroom, canopy bed, incense, hypnosis, luxurious, dim' },
+  { name: '荧光菌穴', ambience: '巨大发光蘑菇丛生的菌穴，弹出的孢子云催情致幻、菌伞会喷射黏稠汁液', scene: 'mushroom, glowing spores, bioluminescent, fungus, cave, purple glow' },
+  { name: '冰晶囚牢', ambience: '寒气逼人的冰晶洞窟，冰棱自动生长封住四肢，低温令肌肤与乳尖异常敏感', scene: 'ice cave, crystal, frozen, cold, blue glow, icicles' },
+  { name: '熔岩魔窟', ambience: '灼热蒸腾的熔岩魔窟，热浪逼出满身香汗、令人喘息脱力、理智被高温融化', scene: 'lava, magma, volcanic cave, heat haze, red glow, ember' },
+  { name: '魔导实验室', ambience: '魔法与机械交织的地底实验室，电流线圈与探针装置对身体进行强制敏感化改造', scene: 'laboratory, machinery, electricity, wires, magic device, sci-fi' },
+  { name: '沉溺水牢', ambience: '半淹没的地底水牢，浮力使身体失衡、水中触手与气泡不断钻探每一处孔穴', scene: 'underwater, flooded dungeon, water, bubbles, submerged, blue' },
+  { name: '活体书库', ambience: '禁忌魔导书堆积如山的书库，活体魔法书吐出墨色触须与咒文将读者拖入淫欲', scene: 'library, bookshelf, magic tome, ink tentacles, candlelight, dark' },
+  { name: '骸骨墓穴', ambience: '亡灵盘踞的森冷墓穴，冰凉的骸骨之手自石棺与地面伸出、执拗地爱抚与束缚', scene: 'catacombs, bones, skeleton, undead, tomb, torchlight' },
+  { name: '流沙地宫', ambience: '被黄沙半掩的古代地宫，缓缓下陷的流沙将身体一寸寸吞没、越挣扎陷得越深', scene: 'desert ruins, quicksand, sand, sandstone, dry, ancient' },
+  { name: '傀儡剧场', ambience: '帷幕低垂的地底剧场，无数丝线自暗处垂下、操控四肢摆出淫靡姿势供无形观众观赏', scene: 'theater stage, puppet strings, marionette, curtains, spotlight, dim' },
+  { name: '淫兽竞技场', ambience: '环形石造竞技场，猎物被推入场中，四周虚影观众的欢呼中被魔兽当众凌辱', scene: 'arena, colosseum, stone, crowd silhouette, public, torchlight' },
 ]
 
 // 第 10 层固定的最终层
@@ -351,6 +382,60 @@ export const PRESET_TRAPS: PresetTrap[] = [
     category: '怪物巢穴',
     hint: '误入半兽人巢穴，被成群粗壮的半兽人按住轮流侵犯，浓厚精液灌满每一个孔穴',
   },
+  {
+    id: 'shock_chamber',
+    name: '电击刑房',
+    category: '电击系',
+    hint: '金属电极夹住乳尖与阴蒂，随程序释放由弱渐强的电流，每一次刺激都强制引发痉挛与失禁高潮',
+  },
+  {
+    id: 'milking_rig',
+    name: '榨乳机关',
+    category: '榨取系',
+    hint: '固定装置吸附住双乳与下体，吸乳罩与按摩头持续抽吸震动，被迫不停泌乳、潮吹直至脱力',
+  },
+  {
+    id: 'insect_swarm',
+    name: '虫群爬袭',
+    category: '虫群系',
+    hint: '成群细小魔虫爬满全身，钻入衣物缝隙舔舐爱抚每一寸敏感肌肤，细密的蠕动令人酥麻难耐',
+  },
+  {
+    id: 'puppet_strings',
+    name: '傀儡丝线',
+    category: '操控系',
+    hint: '无形魔法丝线缠上四肢与指节，操控身体违背意志地摆出淫态、被迫当众自慰与献媚',
+  },
+  {
+    id: 'aphro_infusion',
+    name: '媚药灌注',
+    category: '药物系',
+    hint: '机关强制灌入大量媚药，从口中与孔穴同时注入，敏感度与欲望急速飙升、身体不受控制地渴求',
+  },
+  {
+    id: 'demon_contract',
+    name: '淫魔契约',
+    category: '诅咒系',
+    hint: '被诱骗签下淫魔契约，身体被烙上淫纹并逐步改造，敏感部位被强化、意志一点点被欲望侵蚀',
+  },
+  {
+    id: 'suspension_bondage',
+    name: '悬吊绳缚',
+    category: '拘束系',
+    hint: '绳索将身体捆成屈辱姿势并吊离地面，绳结恰好勒住私处，绑定的跳蛋与按摩棒持续折磨',
+  },
+  {
+    id: 'time_stop',
+    name: '时停凌辱',
+    category: '特殊系',
+    hint: '时间被魔法冻结，身体僵在原地无法动弹也无法反抗，只能清醒地感受被从容玩弄的每一下',
+  },
+  {
+    id: 'beast_taming',
+    name: '兽奸调教',
+    category: '兽奸系',
+    hint: '被魔兽当作发情对象压制，粗野的舔舐与交配将猎物一步步驯化成只会承欢的雌性',
+  },
 ]
 
 // Preset 异常状态 the player can manually apply; these feed straight into
@@ -379,13 +464,13 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
   },
   {
     name: '一之濑志希',
-    race: 'human',
+    race: 'cat',
     avatarUrl: '/avatars/ichinose-shiki.png',
     measurements: { bust: '85', waist: '57', hip: '84' },
-    danbooruTags: 'ichinose_shiki, idolmaster_cinderella_girls, 1girl, short hair, purple hair, gradient hair, purple eyes, multiple ear piercings, mole under eye, medium breasts, white jacket, plaid skirt',
-    backstory: '来自现代日本的十八岁天才化学家兼偶像，自称「再平常不过的 JK」。曾跳级海外留学，只因觉得「无聊」便又回了国。坠入地下城后，她干脆把这场冒险当成「最有趣的性爱实验」，时常偷偷调配烈性春药，抹在自己的乳尖、阴蒂上，或直接喷向玩家。慵懒神秘的猫系微笑之下，是对一切变态玩法近乎病态的好奇心。',
-    costumeDescription: '白色短夹克内一丝不挂，仅靠两条黑色细肩带勉强遮住粉嫩乳尖，稍一扭动便春光乍泄。超短格纹迷你裙下同样真空，黑色过膝袜深深勒进大腿软肉，厚底乐福鞋让她走起路来臀肉一颠一颠。淡紫渐变短发上常年萦绕着自调的催情香，凑近三米便足以让人充血发硬。左耳数枚耳洞缀着小巧银铃，每当高潮便叮铃轻响。',
-    otherDescription: '口头禅是「真有意思呢～❤ 这种玩法的数据好棒哦～」。她是猫系小恶魔与变态科学家的结合体，热衷用舌头、手指与注射器做各种离谱实验——尿道扩张、子宫灌药、强制连续高潮记录，无所不试。被操到失神时会发出「にゃーっはっは❤」般的猫叫淫笑，喜欢把精液与淫水混在一起涂满全身「留作样本」。面对任何新奇花样，她都只会笑着说一句「试试看吧～似乎很有趣呢❤」。',
+    danbooruTags: 'ichinose_shiki, idolmaster_cinderella_girls, 1girl, short hair, purple hair, gradient hair, purple eyes, cat ears, cat tail, multiple ear piercings, mole under eye, medium breasts, white jacket, plaid skirt',
+    backstory: '来自现代日本的十八岁天才化学家兼偶像，自称「再平常不过的 JK」，实则身负猫又血脉。曾跳级海外留学，只因觉得「无聊」便又回了国。坠入地下城后，她干脆把这场冒险当成「最有趣的性爱实验」，时常偷偷调配烈性春药，抹在自己的乳尖、阴蒂上，或直接喷向玩家。慵懒神秘的猫系微笑之下，是对一切变态玩法近乎病态的好奇心——尤其想拿自己那对一碰就发烫的猫耳与猫尾，好好做几组「敏感度实验」。',
+    costumeDescription: '白色短夹克内一丝不挂，仅靠两条黑色细肩带勉强遮住粉嫩乳尖，稍一扭动便春光乍泄。头顶一对淡紫猫耳会随情绪不安分地抽动，尾椎处的长猫尾则慵懒地绕在腿间。超短格纹迷你裙下同样真空，黑色过膝袜深深勒进大腿软肉，厚底乐福鞋让她走起路来臀肉一颠一颠。淡紫渐变短发上常年萦绕着自调的催情香，凑近三米便足以让人充血发硬。左耳数枚耳洞缀着小巧银铃，每当高潮便叮铃轻响。',
+    otherDescription: '口头禅是「真有意思呢～❤ 这种玩法的数据好棒哦～」。她是猫又小恶魔与变态科学家的结合体，热衷用舌头、手指与注射器做各种离谱实验——尿道扩张、子宫灌药、强制连续高潮记录，无所不试。可再冷静的科学家，耳后与尾根一被揉捏便瞬间瘫软、喉间不受控地漏出「にゃーっ❤」的猫叫，一到发情期更会翘着尾巴主动磨蹭求欢。被操到失神时会发出「にゃーっはっは❤」般的猫叫淫笑，喜欢把精液与淫水混在一起涂满全身「留作样本」。面对任何新奇花样，她都只会笑着说一句「试试看吧～似乎很有趣呢❤」。',
   },
   {
     name: '桑山千雪',
@@ -406,5 +491,23 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
     backstory: '二十岁的沉静文学少女兼偶像，平日里寡言慵懒，最爱抱着一本厚重的旧书蜷在角落静静阅读。她因翻开一卷不该读的禁忌古籍而被吸入地下城。清冷疏离的外表下，藏着与那身书卷气极不相称的、被长久压抑的旺盛情欲——她那看似永远困倦半阖的双眸深处，是一具敏感到一碰就溃堤的身体，与一颗渴望被彻底玷污、被狠狠贯穿的重度抖 M 之心。',
     costumeDescription: '宽松的酒红色长开衫松垮地挂在肩头，内里一丝不挂，深色布料随动作滑落便露出大半饱满白皙的酥乳与淡粉乳尖。乌黑顺直的长发垂至腰际，齐刘海下是一张苍白清冷、慵懒欲睡的文静面庞。下身百褶长裙底下真空无物，雪白大腿间那道无毛嫩缝早已被自己悄悄玩弄得熟透湿润，腿根处还沾着未干的淫液。她常把一本旧书抱在胸前，书页间夹着的，却是被她体液浸软的纸张。',
     otherDescription: '说话简短、语调平淡而慵懒，常以「……是吗」「……随你」敷衍，可一旦被插入，那层清冷面具便瞬间崩坏成破碎的哭叫与求饶。极度反差的重度抖 M：越是平静的脸，被操坏时的失态越是淫靡。她痴迷于「一边被朗读书中段落、一边被狠操」的羞耻玩法，也渴望被言语侮辱、被强制高潮到说不出完整句子。被内射时会失神地呢喃「啊……故事的结局……变成这样了吗……❤」。那卷禁忌古籍是淫咒之源，发烫时会令她浑身燥热敏感、字里行间浮现的淫纹缠上她的肌肤，逼她主动张开双腿献身。',
+  },
+  {
+    name: '信浓',
+    race: 'fox',
+    measurements: { bust: '99', waist: '60', hip: '93' },
+    danbooruTags: 'shinano_(azur_lane), 1girl, very long hair, white hair, blunt bangs, blue eyes, huge breasts, animal ears, fox ears, fox mask, japanese clothes, wide sleeves, detached sleeves, thighhighs, hair ornament',
+    backstory: '身量高挑、气质温婉的巨舰妖狐，栖身于地下城深处一座荒废的古神社。她生性极度温柔娴静，说话轻声细语、总是困倦地半阖着双眸，笨拙却又拼命地想守护身边的一切，做错事时会慌张地连声道歉。然而那身雪白巫女装束下，是一具与她怯懦性情格格不入的、丰腴到近乎罪恶的躯体——那对沉甸甸的巨乳与妖狐血脉带来的旺盛情欲，令她一被触碰便耳尾颤抖、羞得满脸通红，却又羞耻地无法抑制身体的迎合。',
+    costumeDescription: '雪白配朱红的宽松巫女装松松垮垮地挂在身上，宽大衣襟根本兜不住那对惊人的雪乳，稍一俯身粉嫩乳晕便整个滑落出来。头顶一对蓬松白狐耳会随羞怯而不安地压低，身后数条毛茸茸的白色狐尾则局促地绕到身前遮掩身子。腰间朱红袴带勒出深陷的腰线，下摆开衩极高，露出被白色过膝袜勒出软肉的雪白长腿，腿间同样真空无物、早已被自身妖狐之火烧得潮湿淌蜜。半覆额前的狐面之下，是一张苍白俊美、慵懒欲眠的娴静面庞。',
+    otherDescription: '说话永远温柔怯懦，即便被贯穿也只会含泪细声道歉「对、对不起……信浓的身体，又擅自……变成这样了……❤」。她是极度温顺的母性抖 M，狐耳与尾根是最大的死穴，一被揉捏便浑身瘫软、淫水决堤。妖狐血脉令她极易发情泌乳，一旦情动便会不受控地摇尾迎合、主动用巨乳与湿热的身体讨好侵犯者。她渴望被当作神社的活体祭品般供奉玩弄，被内射时会哭着低语「请把信浓……填满吧……这样，就能一直被您需要了……❤」。荒废神社的淫祠之力是她妖力之源，一旦被唤醒便令她周身发情、浑身浮现红色狐形淫纹，逼她跪伏着翘臀求欢。',
+  },
+  {
+    name: '樫野',
+    race: 'tauren',
+    measurements: { bust: '92', waist: '59', hip: '90' },
+    danbooruTags: 'kashino_(azur_lane), 1girl, long hair, red hair, hair between eyes, red eyes, large breasts, jacket, overalls, gloves, thighhighs, goggles, mole under mouth',
+    backstory: '干练寡言的地下城工匠，二十出头，一身腱子肉却撑着傲人的巨乳，靠着一手好活儿在冒险者营地里维修装备、打造机关为生。她认真、倔强、极度好胜，最讨厌工作时被人打扰，被夸奖便会别扭地红着脸嘴硬。这身强健旺盛的牛人血脉是她的骄傲，也是她最大的破绽——高强度劳作后血脉一旦躁动，她那对沉甸甸涨奶的巨乳便会隐隐作痛、私处发烫难耐，只能躲进工坊咬着扳手偷偷解决。',
+    costumeDescription: '深色工装背带裤只拉上一半，敞开的胸口下那对涨得发胀的巨乳几乎要挣脱背带，随着抡锤的动作剧烈晃动、渗出的奶渍在布料上洇开深色水痕。结实的手臂套着磨损的皮革工作手套，宽大衣袖胡乱挽到肘弯。额上推着的护目镜、嘴角那颗性感的小痣，配上被汗水浸透、黏在脖颈与深邃乳沟间的赤红长发，透着一股生猛的雌性气息。工装裤下同样被劳作磨得敏感，胯间常年潮湿闷热。',
+    otherDescription: '说话干脆利落、爱逞强嘴硬，被撩拨时会涨红脸怒吼「谁、谁要那种东西了！少得意——哞❤」，逞强的话音却总在中途破成一声黏腻的哞叫。她是极度嘴硬的牛血抖 M：牛人血脉令她发情起来便如野兽般疯狂，理智一旦被顶散，从喉咙里溢出的就不再是人话，而是一声接一声、又长又黏的「哞——❤」「哞呜……哞❤」，活像一头被彻底操熟、待人挤奶的发情母牛。物理束缚很难困住这具强健的身子，可一旦被压制征服、被狠狠贯穿到子宫，骄傲便崩溃成不停歇的哞哞浪叫，舌头伸出、口水与奶水一起顺着下巴淌。天生易泌乳的巨乳是她的致命弱点，被揉捏挤奶便会腿软喷潮，随着挤奶的节奏「哞、哞、哞」地一下下泄出媚叫。被内射孕育时会又羞又怒地哞咽「混、混蛋……把老娘的肚子搞成这样……可恶……哞～却好舒服❤」，边骂边夹紧身子把对方夹得更深，活脱脱一头被按住配种、只会哞哞求精的种牛。',
   },
 ]

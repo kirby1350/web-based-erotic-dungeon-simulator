@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, type MutableRefObject } from 'react'
 import { Send, Loader2, BookOpen, Square, RotateCcw, Wrench, Zap, Sparkles, ShieldAlert, Unlock, HeartCrack } from 'lucide-react'
-import { Character, ChatMessage, AppSettings, BodyDevelopment, BodyPart, StatusEffect } from '@/lib/types'
+import { Character, ChatMessage, AppSettings, BodyDevelopment, BodyPart, StatusEffect, Encounter, EXPLORE_GAIN, ENCOUNTER_CLEAR_GAIN, TARGET_FLOOR, getFloorTheme } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { getSession, saveSession } from '@/lib/storage'
 import { chatStream } from '@/lib/dzmm'
@@ -18,11 +18,22 @@ import { StatusPicker } from '@/components/status-picker'
 const SUMMARY_THRESHOLD = 10
 const RECENT_KEEP = 4
 
+// Client-side success chance (%) for dispelling a status effect by sheer will.
+// Calm → easy; highly aroused / restrained → hard, but never truly impossible.
+function dispelChance(character: Character): number {
+  const arousal = ((character.pleasure ?? 0) + (character.desire ?? 0)) / 2
+  const restrainedPenalty = character.encounter ? 10 : 0
+  const chance = 85 - arousal * 0.6 - restrainedPenalty
+  return Math.max(15, Math.min(90, Math.round(chance)))
+}
+
 interface ChatPanelProps {
   character: Character
   settings: AppSettings
   onRequestImage: (scene: string) => void
   onCharacterUpdate: (updates: Partial<Character>) => void
+  // lets the CharacterCard's exploration buttons drive this panel's explore/advance turns
+  exploreActionsRef?: MutableRefObject<{ explore: () => void; advanceFloor: () => void }>
 }
 
 async function fetchSummary(messages: ChatMessage[], model: string, apiKey: string, grokApiKey: string): Promise<string> {
@@ -181,7 +192,7 @@ function parseOptions(content: string): string[] {
     .slice(0, 4)
 }
 
-export function ChatPanel({ character, settings, onRequestImage, onCharacterUpdate }: ChatPanelProps) {
+export function ChatPanel({ character, settings, onRequestImage, onCharacterUpdate, exploreActionsRef }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [summary, setSummary] = useState<string>('')
   const [summarising, setSummarising] = useState(false)
@@ -199,6 +210,11 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
   const abortRef = useRef<AbortController | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  // client-authoritative overrides for the current turn: the player's escape/dispel
+  // outcome is decided on click; these force the STATS parser to honour it so the DM
+  // can't silently re-bind her or re-add a dispelled status.
+  const escapeOverrideRef = useRef<{ encounter: Encounter | null } | null>(null)
+  const dispelResultRef = useRef<{ id: string; removed: boolean; effect: StatusEffect } | null>(null)
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -326,7 +342,12 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
           if (typeof stats.floor === 'number' && stats.floor >= 1) updates.floor = Math.floor(stats.floor)
           // encounter: object = locked into a trap/monster; null = freed. Only touch
           // the field when the key is present, so a malformed turn keeps the last value.
-          if ('encounter' in stats) {
+          if (escapeOverrideRef.current) {
+            // player-driven escape this turn — force the client outcome, ignore the DM's
+            // encounter field so it can't silently re-bind her (exploration already granted)
+            updates.encounter = escapeOverrideRef.current.encounter
+            escapeOverrideRef.current = null
+          } else if ('encounter' in stats) {
             const e = stats.encounter
             if (e && typeof e === 'object' && typeof e.name === 'string' && e.name.length > 0) {
               updates.encounter = {
@@ -338,6 +359,10 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
               }
             } else {
               updates.encounter = null
+              // encounter just resolved (escaped or played-to-broken) → advance floor exploration
+              if (character.encounter) {
+                updates.explorationProgress = Math.min(100, (character.explorationProgress ?? 0) + ENCOUNTER_CLEAR_GAIN)
+              }
             }
           }
           // Update measurements if AI changes them (e.g. body transformation)
@@ -384,6 +409,19 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
                 description: s.description ?? '',
               }))
           }
+          // player-driven dispel this turn — force the rolled outcome regardless of the DM:
+          // on success drop the status even if re-listed; on failure keep it even if dropped
+          if (dispelResultRef.current) {
+            const { id, removed, effect } = dispelResultRef.current
+            let base = updates.statusEffects ?? character.statusEffects ?? []
+            if (removed) {
+              base = base.filter((e) => e.id !== id)
+            } else if (!base.some((e) => e.id === id)) {
+              base = [...base, effect]
+            }
+            updates.statusEffects = base
+            dispelResultRef.current = null
+          }
 
           // Parse [DESC] (separate marker — long body descriptions, parsed independently
           // so a truncated DESC never breaks the core STATS update)
@@ -402,6 +440,11 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
               ...prevBd,
               descriptions: { ...(prevBd.descriptions ?? {}), ...cleaned },
             }
+          }
+
+          // any floor increase begins a fresh floor → reset exploration progress
+          if (typeof updates.floor === 'number' && updates.floor > (character.floor ?? 1)) {
+            updates.explorationProgress = 0
           }
 
           if (Object.keys(updates).length > 0) onCharacterUpdate(updates)
@@ -454,11 +497,29 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
     await sendMessage('开始冒险', true)
   }
 
-  // Escape button on the encounter banner — sends the escape keywords immediately
-  // (matches the prompt's 陷阱锁定规则 trigger words: 逃脱/挣脱/突破束缚/逃离).
+  // Escape button — client-authoritative progressive escape. Each attempt whittles the
+  // encounter's restraint down one level; at 0 she breaks free. The outcome is decided
+  // here and forced into the STATS parse via escapeOverrideRef, so high pleasure/desire
+  // can no longer wall the escape at 0% (it only makes the DM's narration more perilous).
   const attemptEscape = () => {
     if (loading || !character.encounter) return
-    sendMessage(`${character.name}拼尽全力挣扎，奋力挣脱束缚、突破当前的${character.encounter.name}，逃脱、逃离这个遭遇！`)
+    const enc = character.encounter
+    const newRestraint = enc.restraint - 1
+    if (newRestraint < 0) {
+      // fully break free this attempt
+      escapeOverrideRef.current = { encounter: null }
+      onCharacterUpdate({
+        encounter: null,
+        explorationProgress: Math.min(100, (character.explorationProgress ?? 0) + ENCOUNTER_CLEAR_GAIN),
+      })
+      sendMessage(`${character.name}拼尽最后的力气，终于挣脱了${enc.name}的束缚、成功脱困！（请详细叙述她挣脱成功、逃离这个遭遇的过程；本回合她已彻底脱离，STATS 的 encounter 必须为 null）`)
+    } else {
+      // weaken the bindings by one level, still trapped
+      const weakened: Encounter = { ...enc, restraint: newRestraint }
+      escapeOverrideRef.current = { encounter: weakened }
+      onCharacterUpdate({ encounter: weakened })
+      sendMessage(`${character.name}奋力挣扎，好不容易将${enc.name}的束缚削弱了一分（束缚强度降到 Lv${newRestraint}），却仍未能完全脱身。（请据此叙述她艰难削弱束缚、但尚未逃脱的过程，以及随之而来的强烈色情反噬；STATS 的 encounter 沿用原 id「${enc.id}」，restraint 设为 ${newRestraint}）`)
+    }
   }
 
   // Surrender button — let the encounter ruin and discard her, then it ends.
@@ -467,10 +528,50 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
     sendMessage(`${character.name}彻底放弃抵抗，张开身体迎接${character.encounter.name}的肆意蹂躏，任由自己被玩弄、榨干到精神彻底崩坏，直到对方玩腻后，将这具失神瘫软、淫液淋漓的躯体随意丢弃在一旁。（请详细描写她被玩坏丢弃的过程，并在结束后让她脱离当前遭遇）`)
   }
 
-  // In-fiction attempt to dispel a status effect — the DM judges success by current state.
+  // Explore the current floor: a real DM turn narrating exploration (+ possible new
+  // encounter), while advancing this floor's exploration progress toward 100%.
+  const explore = () => {
+    if (loading || character.encounter) return
+    const cur = character.explorationProgress ?? 0
+    if (cur >= 100) return
+    onCharacterUpdate({ explorationProgress: Math.min(100, cur + EXPLORE_GAIN) })
+    const theme = getFloorTheme(character.floorThemes, character.floor ?? 1)
+    sendMessage(`${character.name}打起精神，继续深入探索本层「${theme.name}」……（请描写她在这片区域中探索前行的所见所感，视情况让她遭遇本层主题相关的全新陷阱或怪物，或发现可搜刮之物）`)
+  }
+
+  // Descend to the next floor — only enabled once exploration hits 100% and no active
+  // encounter. Floor progression is client-authoritative; the DM just narrates arrival.
+  const advanceFloor = () => {
+    if (loading || character.encounter) return
+    const curFloor = character.floor ?? 1
+    if ((character.explorationProgress ?? 0) < 100 || curFloor >= TARGET_FLOOR) return
+    const next = curFloor + 1
+    const theme = getFloorTheme(character.floorThemes, next)
+    onCharacterUpdate({ floor: next, explorationProgress: 0, encounter: null })
+    sendMessage(`${character.name}走下通往深处的阶梯，踏入地下城第 ${next} / ${TARGET_FLOOR} 层「${theme.name}」。（请先用一段叙述描写这层崭新的风貌与氛围：${theme.ambience}；再让她在其中开始新的探索）`)
+  }
+
+  // expose explore/advance to the sibling CharacterCard (buttons live next to the progress bar)
+  useEffect(() => {
+    if (exploreActionsRef) exploreActionsRef.current = { explore, advanceFloor }
+  })
+
+  // Dispel a status effect — client rolls the success chance (see dispelChance), then the
+  // outcome is forced into the STATS parse via dispelResultRef so the DM can neither ignore
+  // a success nor drop a failed status. The DM only narrates the result.
   const attemptDispel = (effect: StatusEffect) => {
     if (loading) return
-    sendMessage(`${character.name}咬紧牙关，试图凝聚意志驱散身上的「${effect.title}」状态（${effect.description}）……（请依据她当前的快感、欲望与身体开发度判定能否解除：越契合当前处境越难解，欲望或快感过高时几乎无法靠意志摆脱。成功则在 [STATS] 的 statusEffects 中移除「${effect.title}」，失败则保留并加剧）`)
+    const chance = dispelChance(character)
+    const success = Math.random() * 100 < chance
+    if (success) {
+      const remaining = (character.statusEffects ?? []).filter((e) => e.id !== effect.id)
+      dispelResultRef.current = { id: effect.id, removed: true, effect }
+      onCharacterUpdate({ statusEffects: remaining })
+      sendMessage(`${character.name}咬紧牙关凝聚意志，成功驱散了身上的「${effect.title}」状态（${effect.description}）。（成功！请叙述她奋力摆脱该状态的过程；本回合该状态已被驱散，STATS 的 statusEffects 中不要再包含「${effect.title}」）`)
+    } else {
+      dispelResultRef.current = { id: effect.id, removed: false, effect }
+      sendMessage(`${character.name}试图凝聚意志驱散身上的「${effect.title}」状态（${effect.description}），却在快感与欲望的冲刷下功亏一篑。（失败！请叙述她努力摆脱却被该状态反噬、意志溃散的过程，状态非但未解除反而更缠人；STATS 的 statusEffects 中必须继续保留「${effect.title}」）`)
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -573,7 +674,7 @@ export function ChatPanel({ character, settings, onRequestImage, onCharacterUpda
       {/* Active status effects — click a chip to attempt dispelling it in-fiction */}
       {character.statusEffects && character.statusEffects.length > 0 && (
         <div className="px-4 py-2 border-b border-yellow-500/20 bg-yellow-500/5 flex items-center gap-1.5 flex-wrap">
-          <span className="text-[10px] uppercase tracking-widest text-yellow-400/60 mr-0.5">异常状态 · 点击尝试解除</span>
+          <span className="text-[10px] uppercase tracking-widest text-yellow-400/60 mr-0.5">异常状态 · 点击尝试解除（成功率 {dispelChance(character)}%）</span>
           {character.statusEffects.map((e) => (
             <button
               key={e.id}

@@ -33,6 +33,9 @@ const RACE_LABEL: Record<Race, string> = {
   human: '人族',
   elf: '精灵族',
   tauren: '牛人族',
+  fox: '狐族',
+  cat: '猫族',
+  machine: '机械族',
 }
 
 export function raceLabel(race: Race): string {
@@ -103,7 +106,8 @@ export function buildSystemPrompt(character: Character, summary?: string, proseS
   const floor = character.floor ?? 1
   const currentTheme = getFloorTheme(character.floorThemes, floor)
   const nextTheme = floor < TARGET_FLOOR ? getFloorTheme(character.floorThemes, floor + 1) : null
-  const floorLine = `- 当前层数：第 ${floor} / ${TARGET_FLOOR} 层（${currentTheme.name}）`
+  const exploreProg = Math.min(100, character.explorationProgress ?? 0)
+  const floorLine = `- 当前层数：第 ${floor} / ${TARGET_FLOOR} 层（${currentTheme.name}）｜本层探索进度：${exploreProg}%`
   const raceTrait = RACE_INFO[character.race]?.trait ?? ''
   const enc = character.encounter
   const encounterLine = enc
@@ -143,10 +147,10 @@ ${lewdVoiceRules(character.name)}
 3. 每个比喻必须新鲜、贴合当前情境，**不得重复使用同一个喻体**。
 4. 允许保留重口「行话/梗」（肉便器、坏掉、ahegao、脑子融化、子宫凸起、母猪/肉壶等）——这是题材惯例；但靠具体细节而非反复堆砌同一个标签来制造冲击。
 ${PROSE_STYLE_PROMPTS[proseStyle] ? `\n${PROSE_STYLE_PROMPTS[proseStyle]}\n` : ''}
-【陷阱锁定规则（最严格执行）】
-1. 一旦${character.name}陷入任何陷阱（被触手缠绕、被怪物捕获、被束缚、被魔法控制等），除非玩家**明确输入**“逃脱”“挣脱”“离开陷阱”“突破束缚”“逃离”等关键词，否则${character.name}**绝对无法逃离**。
-2. 所有行动选项必须限制在陷阱内（抵抗/享受/堕落），即使判定成功也只能减轻束缚程度，不能完全逃脱。
-3. 欲望值>60 或 快感值>70 时，逃脱成功率强制为0%，并触发更强烈的色情强制事件。
+【陷阱锁定规则（严格执行）】
+1. 一旦${character.name}陷入任何陷阱/遭遇（被触手缠绕、被怪物捕获、被束缚、被魔法控制等），除非玩家**明确采取挣脱行动**（输入“挣脱/逃脱/突破束缚/逃离”或点击挣脱按钮），否则不会自行脱困；日常行动选项仍须限制在遭遇内（抵抗/享受/堕落）。
+2. 挣脱是一个**逐步削弱束缚**的过程：玩家每次奋力挣脱都会削弱一分束缚强度（restraint 逐级下降），累积到完全松脱即彻底逃离。快感/欲望越高，挣脱越惊险、每一分削弱都伴随更强烈的色情反噬与险些彻底沦陷的挣扎；**但只要玩家坚持，最终一定能够脱困——绝不可把挣脱写成完全徒劳或永远 0%**。
+3. 当玩家消息中给出了本回合明确的挣脱结果（如“束缚降到 LvN”或“成功脱困”）时，你**必须据此叙述**，并让 [STATS] 的 encounter 与该结果完全一致：削弱则沿用原 id 并把 restraint 设为该数值；脱困则 encounter 填 null。
 
 【色情状态影响规则（必须严格遵守）】
 1. 欲望值越高，${character.name} 越容易主动求欢、选项更淫荡、身体更敏感。
@@ -157,8 +161,11 @@ ${PROSE_STYLE_PROMPTS[proseStyle] ? `\n${PROSE_STYLE_PROMPTS[proseStyle]}\n` : '
 【地下城进度规则】
 1. 地下城共 ${TARGET_FLOOR} 层，层数越深，陷阱与怪物越危险、越极端，描写与开发强度相应升级。当前第 ${floor} / ${TARGET_FLOOR} 层。
 2. 本层风貌：「${currentTheme.name}」——${currentTheme.ambience}。本层出现的场景、陷阱、怪物都必须契合该主题；[SCENE] 标签应融入本层基调（如：${currentTheme.scene}）。
-3. 进层条件：仅当${character.name}**明确选择下潜/走下楼梯/踏入传送门**，且当前遭遇已解除（encounter 为「无」）时，floor 才 +1；否则保持当前层。floor 只增不减。
-4. 每当进入新的一层，必须先用一段叙述描写这层崭新的风貌与氛围，再让${character.name}在其中自由探索、遭遇本层主题的全新陷阱。${nextTheme ? `\n5. 下一层（第 ${floor + 1} 层）的风貌为「${nextTheme.name}」——${nextTheme.ambience}；若本回合${character.name}成功下潜，立刻据此描写新一层。` : ''}
+3. **层数由系统控制，你不得擅自更改**：[STATS] 的 floor 必须始终原样沿用上方【玩家角色信息】里的当前层数，**绝不主动 +1**。只有当玩家消息**明确表示「前进/下潜到第 N 层」**时，才把 floor 设为该新层数。floor 只增不减。
+4. 探索与进层机制：玩家通过「探索」推进**本层探索进度**（见上方百分比），进度满 100% 后系统才允许其下潜到下一层。
+   - 当玩家选择**继续探索本层**时：描写${character.name}在本层主题中探索前行，视情况引入本层主题相关的全新陷阱/怪物（设置 encounter），或让她有所发现；不要急着结束本层。
+   - 探索进度越高，代表本层越接近深处，可让陷阱/怪物逐渐变强、氛围逐步推向本层高潮。
+   - 当玩家消息表示**踏入下一层**时：先用一段叙述描写新一层崭新的风貌与氛围，再让${character.name}在其中重新开始探索。${nextTheme ? `\n5. 下一层（第 ${floor + 1} 层）的风貌为「${nextTheme.name}」——${nextTheme.ambience}；玩家下潜时立刻据此描写新一层。` : ''}
 6. 第 ${TARGET_FLOOR} 层为最终层「${getFloorTheme(character.floorThemes, TARGET_FLOOR).name}」，盘踞着地下城的主宰。抵达此层即进入最终对决——这是整场冒险的终极目标。
 
 【叙事与选项规则】
@@ -188,7 +195,7 @@ ${PROSE_STYLE_PROMPTS[proseStyle] ? `\n${PROSE_STYLE_PROMPTS[proseStyle]}\n` : '
 
 字段说明：
 - hp / pleasure / desire 为 0-100 整数（hp 上限为 ${character.maxHp}）
-- floor：当前层数整数；沿用【玩家角色信息】的当前层数，仅在确实深入下一层时 +1
+- floor：当前层数整数；**始终原样沿用【玩家角色信息】的当前层数**，不得自行 +1；仅当玩家消息明确表示下潜到下一层时才改为新层数
 - encounter：当前遭遇的陷阱/怪物
   - **遭遇持续性（重要）**：上方【玩家角色信息】已列出当前遭遇及其 id。只要仍被困，必须**沿用原 id 与 name 原样保留**，仅按剧情更新 summary / restraint；玩家成功逃脱或遭遇结束后，本字段填 null。新的陷阱/怪物才用新的英文下划线 id。
   - kind 取 "trap"（陷阱）或 "monster"（怪物）；restraint 为束缚强度 0-3（0=勉强压制，3=完全被束缚无法动弹）
@@ -198,7 +205,7 @@ ${PROSE_STYLE_PROMPTS[proseStyle] ? `\n${PROSE_STYLE_PROMPTS[proseStyle]}\n` : '
 - statusEffects：**每回合都必须输出完整的当前状态数组**——即使本回合无变化，也要把所有仍生效的状态原样全部列出；当前无任何异常状态时输出空数组 []。**绝不允许省略此字段**（省略会导致状态永久粘着、消不掉）。
   - **状态持续性**：仍有效的状态沿用其原 id 原样保留；只有全新状态才用新的英文下划线 id。
   - **状态解除（重要，避免无限堆叠）**：当某状态的成因消失时，必须把它从数组中**删除**——例如脱离相关遭遇、得到休息或净化、高潮退潮后情绪平复、效果到时自然消退等。不要让状态永久挂着。
-  - **玩家主动解除**：当玩家输入明确「尝试解除/驱散某状态」时，依据其当前快感/欲望/身体开发度判定成败：状态越契合当前处境（如被陷阱压制时想解除「拘束」）越难解，欲望或快感过高时几乎无法靠意志解除；判定成功则从数组移除该状态，失败则保留、甚至加剧并触发更强色情事件。
+  - **玩家主动解除**：当玩家尝试解除某状态时，玩家消息会给出本回合的判定结果，你必须据此叙述——**成功**则描写她奋力摆脱该状态，并在 statusEffects 中**移除**被点名的该状态（不再列出）；**失败**则描写她被该状态反噬、意志溃散，并在 statusEffects 中**继续保留**该状态（可加剧其描述）。一律以玩家消息标明的成功/失败为准。
   - id 用英文下划线格式，title 用中文2-4字，description 一句中文
 - DESC 各部位用20-30字描写当前的身体感觉或变化；若本回合无明显变化可沿用上次描述
 - 两个标记的 JSON 都必须格式正确、完整、不得分行；务必先把 [STATS] 完整输出，再输出 [DESC]`
@@ -221,15 +228,19 @@ export function buildSummaryUserPrompt(conversation: string): string {
 
 export function buildRandomTrapPrompt(
   character: Character,
-  hint?: string,
+  hints?: string[],
   currentLocation = '未知区域',
   proseStyle: ProseStyle = 'standard'
 ): string {
   const bd = character.bodyDevelopment ?? { breast: 0, clitoris: 0, vagina: 0, anus: 0 }
   const se = character.statusEffects ?? []
-  const typeRule = hint
+  const list = (hints ?? []).filter(Boolean)
+  const typeRule = list.length >= 2
+    ? `1. 本次必须将以下多种陷阱类型**融合成一个连贯的复合陷阱**——让它们的机制同时作用、彼此交织衔接，而不是简单罗列拼接（根据玩家当前状态自由发挥细节）：
+${list.map((h) => `   - ${h}`).join('\n')}`
+    : list.length === 1
     ? `1. 本次必须生成以下指定类型的陷阱（根据玩家当前状态自由发挥细节）：
-   ${hint}`
+   ${list[0]}`
     : `1. 随机选择一种陷阱类型（不可重复使用最近用过的），类型包括但不限于：
    - 触手系（普通/异形/寄生）
    - 粘液/史莱姆系
@@ -254,18 +265,17 @@ export function buildRandomTrapPrompt(
 【生成要求】
 ${typeRule}
 
-2. 生成内容必须包含：
+2. 生成内容必须包含（控制篇幅、不要注水，宁精炼勿冗长）：
    - 陷阱名称（带色情味）
-   - 详细触发过程（200字以上，极度色情，包含感官描写）
-   - 陷入后立即发生的强制色情效果
-   - 对玩家状态的影响
+   - 触发描写（150~220 字，极度色情、感官具体，写到点子上即收）
+   - 陷入后立即发生的强制色情效果与身体反应（80 字以内，简明扼要）
    - 严格输出以下格式：
 
 【陷阱名称】xxx
 【触发描写】
-（第三人称详细叙述）
+（第三人称叙述，150~220 字）
 
 【当前效果】
-（说明玩家将会被如何侵犯、身体反应）
+（玩家将被如何侵犯、身体反应，80 字以内）
 `
 }

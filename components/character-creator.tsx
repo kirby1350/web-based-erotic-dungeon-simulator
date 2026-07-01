@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Upload, Sword, Wand2, Shield, Sparkles } from 'lucide-react'
+import { Upload, Sword, Wand2, Shield, Sparkles, Cat, PawPrint, Cog, X } from 'lucide-react'
 import { Character, Race, RACE_INFO, CharacterMeasurements, CHARACTER_PRESETS, CharacterPreset, rollFloorThemes } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -13,6 +13,9 @@ const RACE_ICONS: Record<Race, React.ReactNode> = {
   human: <Sword className="w-5 h-5" />,
   elf: <Wand2 className="w-5 h-5" />,
   tauren: <Shield className="w-5 h-5" />,
+  fox: <PawPrint className="w-5 h-5" />,
+  cat: <Cat className="w-5 h-5" />,
+  machine: <Cog className="w-5 h-5" />,
 }
 
 export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
@@ -26,6 +29,9 @@ export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // preset library popup
+  const [presetOpen, setPresetOpen] = useState(false)
+  const [presetRaceFilter, setPresetRaceFilter] = useState<Race | 'all'>('all')
 
   const handleFileUpload = (file: File) => {
     if (!file.type.startsWith('image/')) return
@@ -72,9 +78,17 @@ export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
       floor: 1,
       floorThemes: rollFloorThemes(),
       encounter: null,
+      explorationProgress: 0,
     }
     onComplete(character)
   }
+
+  // races that actually have presets, for the popup filter tabs
+  const presetRaces = Array.from(new Set(CHARACTER_PRESETS.map((p) => p.race)))
+  const filteredPresets =
+    presetRaceFilter === 'all'
+      ? CHARACTER_PRESETS
+      : CHARACTER_PRESETS.filter((p) => p.race === presetRaceFilter)
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
@@ -92,34 +106,13 @@ export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
               <Sparkles className="w-3.5 h-3.5 text-primary/60" />
               预设角色
             </label>
-            <div className="grid grid-cols-3 gap-2">
-              {CHARACTER_PRESETS.map((preset) => (
-                <button
-                  key={preset.name}
-                  onClick={() => applyPreset(preset)}
-                  className={cn(
-                    'flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-all text-xs',
-                    name === preset.name
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border bg-secondary text-muted-foreground hover:border-primary/50'
-                  )}
-                >
-                  {preset.avatarUrl ? (
-                    <img
-                      src={preset.avatarUrl}
-                      alt={preset.name}
-                      className="w-14 h-14 rounded-lg object-cover object-top"
-                    />
-                  ) : (
-                    <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
-                      <Sparkles className="w-5 h-5" />
-                    </div>
-                  )}
-                  <span className="font-semibold">{preset.name}</span>
-                  <span className="text-[10px] opacity-60">{RACE_INFO[preset.race].label}</span>
-                </button>
-              ))}
-            </div>
+            <button
+              onClick={() => setPresetOpen(true)}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-dashed border-border bg-secondary text-sm text-muted-foreground hover:border-primary/60 hover:text-primary transition-all"
+            >
+              <Sparkles className="w-4 h-4" />
+              从预设角色库中选择…
+            </button>
           </div>
 
           <div className="border-t border-border/40" />
@@ -276,6 +269,98 @@ export function CharacterCreator({ onComplete }: CharacterCreatorProps) {
           </button>
         </div>
       </div>
+
+      {/* Preset library popup */}
+      {presetOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+          onClick={() => setPresetOpen(false)}
+        >
+          <div
+            className="w-full max-w-2xl dungeon-border rounded-xl bg-card flex flex-col max-h-[85vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <span className="font-bold text-sm tracking-wider gold-text">预设角色库</span>
+              </div>
+              <button
+                onClick={() => setPresetOpen(false)}
+                className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Race filter tabs */}
+            <div className="px-4 pt-3 flex flex-wrap gap-1.5 flex-shrink-0">
+              <button
+                onClick={() => setPresetRaceFilter('all')}
+                className={cn(
+                  'px-3 py-1 rounded-full border text-xs transition-colors',
+                  presetRaceFilter === 'all'
+                    ? 'border-primary/60 bg-primary/10 text-primary'
+                    : 'border-border bg-secondary text-muted-foreground hover:border-primary/40'
+                )}
+              >
+                全部
+              </button>
+              {presetRaces.map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setPresetRaceFilter(r)}
+                  className={cn(
+                    'flex items-center gap-1 px-3 py-1 rounded-full border text-xs transition-colors',
+                    presetRaceFilter === r
+                      ? 'border-primary/60 bg-primary/10 text-primary'
+                      : 'border-border bg-secondary text-muted-foreground hover:border-primary/40'
+                  )}
+                >
+                  {RACE_ICONS[r]}
+                  {RACE_INFO[r].label}
+                </button>
+              ))}
+            </div>
+
+            {/* Preset cards */}
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="grid grid-cols-3 gap-2">
+                {filteredPresets.map((preset) => (
+                  <button
+                    key={preset.name}
+                    onClick={() => {
+                      applyPreset(preset)
+                      setPresetOpen(false)
+                    }}
+                    className={cn(
+                      'flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-all text-xs',
+                      name === preset.name
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border bg-secondary text-muted-foreground hover:border-primary/50'
+                    )}
+                  >
+                    {preset.avatarUrl ? (
+                      <img
+                        src={preset.avatarUrl}
+                        alt={preset.name}
+                        className="w-16 h-16 rounded-lg object-cover object-top"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
+                        {RACE_ICONS[preset.race]}
+                      </div>
+                    )}
+                    <span className="font-semibold">{preset.name}</span>
+                    <span className="text-[10px] opacity-60">{RACE_INFO[preset.race].label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -5,13 +5,16 @@ import { Character, BodyPart, RACE_INFO, TARGET_FLOOR, getFloorTheme } from '@/l
 import {
   Heart, RotateCcw,
   Flame, Sparkles, ChevronDown, ChevronUp,
-  AlertTriangle, Layers,
+  AlertTriangle, Layers, Compass, ChevronsDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface CharacterCardProps {
   character: Character
   onReset: () => void
+  // exploration actions, wired through to the sibling ChatPanel (buttons sit by the progress bar)
+  onExplore?: () => void
+  onAdvanceFloor?: () => void
 }
 
 const BODY_PART_LABELS: Record<BodyPart, string> = {
@@ -66,7 +69,7 @@ function DevelopmentBar({ level, exp }: { level: number; exp: number }) {
   )
 }
 
-export function CharacterCard({ character, onReset }: CharacterCardProps) {
+export function CharacterCard({ character, onReset, onExplore, onAdvanceFloor }: CharacterCardProps) {
   const raceInfo = RACE_INFO[character.race]
   const [showBody, setShowBody] = useState(false)
   const [showStatus, setShowStatus] = useState(false)
@@ -74,6 +77,7 @@ export function CharacterCard({ character, onReset }: CharacterCardProps) {
   const statusEffects = character?.statusEffects ?? []
   const bodyDevelopment = character?.bodyDevelopment ?? { breast: 0, clitoris: 0, urethra: 0, vagina: 0, anus: 0 }
   const hasStatusEffects = statusEffects.length > 0
+  const exploreProgress = Math.min(100, character.explorationProgress ?? 0)
 
   return (
     <div className="border-b border-border">
@@ -95,11 +99,52 @@ export function CharacterCard({ character, onReset }: CharacterCardProps) {
               <h2 className="font-bold text-sm truncate gold-text">{character.name}</h2>
             </div>
             <div className="flex items-center gap-2">
-              <p className="text-xs text-muted-foreground">{raceInfo.label}</p>
-              <span className="flex items-center gap-1 text-[10px] text-amber-300/90 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full flex-shrink-0">
+              <p className="text-xs text-muted-foreground flex-shrink-0">{raceInfo.label}</p>
+              <span
+                title={getFloorTheme(character.floorThemes, character.floor ?? 1).name}
+                className="flex items-center gap-1 text-[10px] text-amber-300/90 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full flex-shrink-0"
+              >
                 <Layers className="w-3 h-3" />
-                第 {character.floor ?? 1}/{TARGET_FLOOR} 层 · {getFloorTheme(character.floorThemes, character.floor ?? 1).name}
+                第 {character.floor ?? 1}/{TARGET_FLOOR} 层
               </span>
+              {/* exploration progress toward unlocking the next floor */}
+              <div
+                className="flex-1 min-w-0 flex items-center gap-1.5"
+                title={`本层探索进度 ${exploreProgress}%`}
+              >
+                <Compass className="w-3 h-3 text-primary/60 flex-shrink-0" />
+                <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden min-w-[1.5rem]">
+                  <div
+                    className="h-full bg-gradient-to-r from-amber-500 to-primary rounded-full transition-all duration-500"
+                    style={{ width: `${exploreProgress}%` }}
+                  />
+                </div>
+                <span className="text-[10px] text-muted-foreground flex-shrink-0 tabular-nums">{exploreProgress}%</span>
+              </div>
+              {/* explore / descend actions (drive the ChatPanel via game-screen) */}
+              {!character.encounter && (
+                exploreProgress >= 100 ? (
+                  (character.floor ?? 1) < TARGET_FLOOR && (
+                    <button
+                      onClick={onAdvanceFloor}
+                      title="本层探索完毕，前进到下一层"
+                      className="flex items-center gap-0.5 px-2 py-0.5 rounded-full border border-amber-400/50 bg-amber-500/15 text-amber-200 text-[10px] font-bold hover:bg-amber-500/25 hover:border-amber-300 transition-all flex-shrink-0"
+                    >
+                      <ChevronsDown className="w-3 h-3" />
+                      前进
+                    </button>
+                  )
+                ) : (
+                  <button
+                    onClick={onExplore}
+                    title="探索本层，推进探索进度"
+                    className="flex items-center gap-0.5 px-2 py-0.5 rounded-full border border-primary/50 bg-primary/10 text-primary text-[10px] font-bold hover:bg-primary/20 hover:border-primary transition-all flex-shrink-0"
+                  >
+                    <Compass className="w-3 h-3" />
+                    探索
+                  </button>
+                )
+              )}
             </div>
           </div>
 
