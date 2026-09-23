@@ -100,14 +100,15 @@ export async function chatStream(opts: ChatStreamOpts, onDelta: (delta: string) 
     return
   }
 
-  // self-host fallback → /api/chat (SSE proxy with the user's keys)
+  // self-host fallback → /api/chat; DZMM credentials stay on the server.
   const res = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       messages: opts.messages,
       model: opts.model,
-      apiKey: opts.apiKey,
+      userId: getLocalId('dungeon_user_id'),
+      conversationId: getLocalId('dungeon_conversation_id'),
       grokApiKey: opts.grokApiKey,
     }),
     signal: opts.signal,
@@ -117,6 +118,20 @@ export async function chatStream(opts: ChatStreamOpts, onDelta: (delta: string) 
     throw new Error(err.error || '请求失败')
   }
   await streamChatDeltas(res, onDelta)
+}
+
+const transientIds = new Map<string, string>()
+function getLocalId(key: string): string {
+  try {
+    const existing = localStorage.getItem(key)
+    if (existing) return existing
+    const id = crypto.randomUUID()
+    localStorage.setItem(key, id)
+    return id
+  } catch {
+    if (!transientIds.has(key)) transientIds.set(key, crypto.randomUUID())
+    return transientIds.get(key)!
+  }
 }
 
 // Generate images via the platform SDK (no polling). Returns image URLs.

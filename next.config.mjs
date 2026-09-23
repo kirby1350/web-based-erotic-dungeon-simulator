@@ -6,9 +6,6 @@ const isStaticExport = process.env.DZMM_BUILD === '1'
 
 const nextConfig = {
   ...(isStaticExport ? { output: 'export' } : {}),
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   images: {
     unoptimized: true,
   },

@@ -1,14 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 
 export const runtime = 'edge'
 
 // Proxy the DZMM model list so the API key stays server-side and CORS is avoided.
-export async function GET(req: NextRequest) {
-  const key = req.headers.get('x-api-key') || process.env.CHAT_API_KEY || ''
+export async function GET() {
+  const key = process.env.DZMM_API_TOKEN || process.env.CHAT_API_KEY
+  if (!key) return NextResponse.json({ error: '请在服务端配置 DZMM_API_TOKEN' }, { status: 401 })
 
   try {
-    const response = await fetch('https://www.gpt4novel.com/api/xiaoshuoai/ext/v2/models', {
-      headers: key ? { Authorization: `Bearer ${key}` } : {},
+    const response = await fetch('https://api.sillytraven.dev/api/ai/v2/models', {
+      headers: { Authorization: `Bearer ${key}` },
+      cache: 'no-store',
     })
 
     if (!response.ok) {

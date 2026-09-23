@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Upload, Sword, Wand2, Shield, Sparkles, Cat, PawPrint, Cog, X } from 'lucide-react'
+import { Upload, Sword, Wand2, Shield, Sparkles, Cat, PawPrint, Cog, Flame, Heart, X } from 'lucide-react'
 import { Character, Race, RACE_INFO, CharacterMeasurements, CHARACTER_PRESETS, CharacterPreset, rollFloorThemes } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -16,6 +16,8 @@ const RACE_ICONS: Record<Race, React.ReactNode> = {
   fox: <PawPrint className="w-5 h-5" />,
   cat: <Cat className="w-5 h-5" />,
   machine: <Cog className="w-5 h-5" />,
+  dragon: <Flame className="w-5 h-5" />,
+  succubus: <Heart className="w-5 h-5" />,
 }
 
 export function CharacterCreator({ onComplete }: CharacterCreatorProps) {

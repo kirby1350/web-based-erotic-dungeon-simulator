@@ -15,7 +15,7 @@
 
 ```bash
 pnpm install
-cp .env.example .env.local   # 填入需要的 API Key（也可留空，改在应用内设置里填）
+cp .env.example .env.local   # 填入需要的 API Key（DZMM 令牌仅在服务端配置）
 pnpm dev
 ```
 
@@ -25,11 +25,12 @@ pnpm dev
 
 ## 环境变量
 
-见 [`.env.example`](./.env.example)。所有 Key 均为可选的服务端兜底值，用户可在应用内「设置」中填入自己的 Key 覆盖：
+见 [`.env.example`](./.env.example)。DZMM 令牌仅从服务端读取；其他服务仍支持在应用设置中配置 Key：
 
 | 变量 | 用途 |
 | --- | --- |
-| `CHAT_API_KEY` | 对话模型（DZMM / gpt4novel） |
+| `DZMM_API_TOKEN` | DZMM Card-Chat API v2 令牌（服务端） |
+| `CHAT_API_KEY` | 兼容旧变量名，优先使用 `DZMM_API_TOKEN` |
 | `GROK_API_KEY` | Grok / xAI 模型 |
 | `PIXAI_API_KEY` | PixAI 图片生成 |
 | `TENSORART_API_KEY` | TensorArt 图片生成 |
@@ -42,10 +43,13 @@ pnpm dev
 | `pnpm build` | 生产构建 |
 | `pnpm start` | 运行生产构建 |
 | `pnpm lint` | ESLint 检查 |
+| `pnpm typecheck` | TypeScript 类型检查 |
+
+存档导出不包含 API Key；导入存档时保留本机密钥。生产构建会执行类型检查，类型错误会阻止构建。
 
 ## 部署须知（安全）
 
-API Key 存储在浏览器 localStorage，并随每次请求经由本项目的 `/api/*` 代理转发，密钥不暴露给第三方前端。但请注意：
+DZMM 令牌保留在服务端；其他服务的用户自填 API Key 存储在浏览器 localStorage，并随请求经由本项目的 `/api/*` 代理转发。请注意：
 
 - 本应用面向**单人自部署**场景。`/api/chat`、`/api/image/*` 等接口**没有鉴权与速率限制**。
 - 若部署到公网，他人可直接调用这些接口，消耗你配置在环境变量里的 Key。建议加访问控制（如 Vercel 的密码保护 / 中间件鉴权 / 仅本地运行）。
@@ -62,3 +66,7 @@ hooks/          自定义 hooks
 ## 玩法说明
 
 游戏内容为成人向虚构创作，仅供成年人在合法合规前提下娱乐使用。
+
+### DZMM v2 接入
+
+自部署通过服务端代理访问 `https://api.sillytraven.dev/api/ai/v2/models` 和 `/v2/chat/completions`。默认模型为 `x-apex-surge-0505-16k`。现有系统提示映射到角色卡的 `system_prompt`，普通对话放入 `messages`，响应继续使用 SSE 流式输出。配置 `.env.local` 中的 `DZMM_API_TOKEN` 后重启服务。平台 iframe 仍使用宿主注入的 SDK。

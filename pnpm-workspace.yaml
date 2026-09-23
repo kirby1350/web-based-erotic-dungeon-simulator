@@ -1,0 +1,4 @@
+# pnpm build-script approvals. Only the packages listed here may run their
+# postinstall build scripts (pnpm blocks all others by default for safety).
+onlyBuiltDependencies:
+  - sharp

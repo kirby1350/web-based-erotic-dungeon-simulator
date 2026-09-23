@@ -55,13 +55,11 @@ export function SettingsPanel({ settings, onSettingsChange, onClose }: SettingsP
     }
   }
 
-  const fetchModels = useCallback(async (apiKey: string) => {
+  const fetchModels = useCallback(async () => {
     setModelsLoading(true)
     setModelsError('')
     try {
-      const res = await fetch('/api/models', {
-        headers: apiKey ? { 'x-api-key': apiKey } : {},
-      })
+      const res = await fetch('/api/models')
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || '获取失败')
       const list: DzmmModel[] = Array.isArray(data?.data) ? data.data : []
@@ -75,7 +73,7 @@ export function SettingsPanel({ settings, onSettingsChange, onClose }: SettingsP
 
   // Load the live DZMM model list once when the panel opens
   useEffect(() => {
-    fetchModels(local.chatApiKey || '')
+    fetchModels()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -94,7 +92,7 @@ export function SettingsPanel({ settings, onSettingsChange, onClose }: SettingsP
     ...(dzmmModels.length > 0
       ? dzmmModels.map((m) => ({
           value: m.id,
-          label: m.context_window ? `${m.name} · ${Math.round(m.context_window / 1000)}K` : m.name,
+          label: m.context_window ? `${m.name || m.id} · ${Math.round(m.context_window / 1000)}K` : (m.name || m.id),
           group: DZMM_GROUP,
           provider: 'default' as const,
         }))
@@ -155,21 +153,7 @@ export function SettingsPanel({ settings, onSettingsChange, onClose }: SettingsP
         <div className="flex-1 overflow-y-auto p-4 space-y-5">
           {activeTab === 'chat' ? (
             <>
-              {/* Chat API Key */}
-              <div>
-                <label className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
-                  <Key className="w-3.5 h-3.5" />
-                  Chat API Key
-                </label>
-                <input
-                  type="password"
-                  value={local.chatApiKey}
-                  onChange={(e) => update({ chatApiKey: e.target.value })}
-                  placeholder="留空则使用环境变量中的 Key"
-                  className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-primary transition-colors"
-                />
-                <p className="text-xs text-muted-foreground/60 mt-1">可在此覆盖服务器端 API Key</p>
-              </div>
+              <p className="text-xs text-muted-foreground">DZMM 令牌由服务端环境变量 DZMM_API_TOKEN 配置。</p>
 
               {/* Grok API Key */}
               <div>
@@ -196,7 +180,7 @@ export function SettingsPanel({ settings, onSettingsChange, onClose }: SettingsP
                     对话模型
                   </label>
                   <button
-                    onClick={() => fetchModels(local.chatApiKey || '')}
+                    onClick={() => fetchModels()}
                     disabled={modelsLoading}
                     title="刷新模型列表"
                     className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary disabled:opacity-40 transition-colors"
@@ -465,6 +449,7 @@ export function SettingsPanel({ settings, onSettingsChange, onClose }: SettingsP
 
         {/* Save + backup */}
         <div className="p-4 border-t border-border space-y-2">
+          <p className="text-xs text-muted-foreground">导出存档不包含 API Key；导入时保留本机已配置的密钥。</p>
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={handleExport}

@@ -25,6 +25,9 @@ export function getSettings(): AppSettings {
     if (!VALID_IMAGE_TAG_PRESETS.includes(merged.imageTagPreset)) merged.imageTagPreset = 'none'
     if (!VALID_PROSE_STYLES.includes(merged.proseStyle)) merged.proseStyle = 'standard'
     if (!VALID_TENSORART_MODELS.includes(merged.tensorartModel)) merged.tensorartModel = 'wai_nsfw_v16'
+    merged.chatApiKey = ''
+    if (merged.chatModel === 'x-apex-neo-16k') merged.chatModel = 'x-apex-surge-0505-16k'
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(merged)) } catch { /* storage may be full */ }
     return merged
   } catch {
     return getDefaultSettings()
@@ -33,12 +36,12 @@ export function getSettings(): AppSettings {
 
 export function saveSettings(settings: AppSettings): void {
   if (typeof window === 'undefined') return
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...settings, chatApiKey: '' }))
 }
 
 export function getDefaultSettings(): AppSettings {
   return {
-    chatModel: 'x-apex-neo-16k',
+    chatModel: 'x-apex-surge-0505-16k',
     imageModel: 'tsubaki_v2',
     imageStyle: 'none',
     imageStyleCustom: '',
@@ -100,6 +103,7 @@ export function saveSession(session: GameSession): void {
 export function clearSession(): void {
   if (typeof window === 'undefined') return
   localStorage.removeItem(SESSION_KEY)
+  localStorage.removeItem('dungeon_conversation_id')
 }
 
 // ---- Backup: export / import the whole save (settings + character + session) ----
@@ -114,7 +118,14 @@ export interface SaveBundle {
 export function exportAll(): string {
   const bundle: SaveBundle = {
     version: 1,
-    settings: getSettings(),
+    // Backups are shareable: never include locally stored credentials.
+    settings: {
+      ...getSettings(),
+      chatApiKey: '',
+      grokApiKey: '',
+      pixaiApiKey: '',
+      tensorartApiKey: '',
+    },
     character: getCharacter(),
     session: getSession(),
   }
@@ -125,7 +136,19 @@ export function exportAll(): string {
 export function importAll(raw: string): boolean {
   const data = JSON.parse(raw) as Partial<SaveBundle>
   if (typeof data !== 'object' || data === null) throw new Error('文件格式无效')
-  if (data.settings) saveSettings(data.settings as AppSettings)
+  if (data.settings) {
+    // Import preferences without replacing this device's credentials, including
+    // when importing legacy backups that accidentally included API keys.
+    const current = getSettings()
+    saveSettings({
+      ...current,
+      ...data.settings,
+      chatApiKey: current.chatApiKey,
+      grokApiKey: current.grokApiKey,
+      pixaiApiKey: current.pixaiApiKey,
+      tensorartApiKey: current.tensorartApiKey,
+    })
+  }
   if (data.character) saveCharacter(data.character)
   if (data.session) saveSession(data.session as GameSession)
   return true

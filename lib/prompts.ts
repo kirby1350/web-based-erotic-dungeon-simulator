@@ -36,6 +36,8 @@ const RACE_LABEL: Record<Race, string> = {
   fox: '狐族',
   cat: '猫族',
   machine: '机械族',
+  dragon: '龙族',
+  succubus: '魅魔族',
 }
 
 export function raceLabel(race: Race): string {
@@ -230,7 +232,8 @@ export function buildRandomTrapPrompt(
   character: Character,
   hints?: string[],
   currentLocation = '未知区域',
-  proseStyle: ProseStyle = 'standard'
+  proseStyle: ProseStyle = 'standard',
+  focusParts?: string[]
 ): string {
   const bd = character.bodyDevelopment ?? { breast: 0, clitoris: 0, vagina: 0, anus: 0 }
   const se = character.statusEffects ?? []
@@ -251,6 +254,10 @@ ${list.map((h) => `   - ${h}`).join('\n')}`
    - 催眠/幻觉镜子/魅魔领域
    - 寄生虫/卵注入系
    - 其他你能想到的重口色情陷阱`
+  const focus = (focusParts ?? []).filter(Boolean)
+  const focusRule = focus.length
+    ? `\n\n【部位特化】本次陷阱的机制、触发描写与当前效果都必须**重点针对以下部位**，把它们作为主要的侵犯与描写焦点（其余部位可作陪衬，但主戏在此）：${focus.join('、')}`
+    : ''
   return `你现在是「极致色情随机陷阱生成器」，必须生成一个全新、高度色情的地下城陷阱事件。语言风格与地下城DM一致：极度淫荡、感官爆炸、尺度无上限。
 
 当前玩家：${character.name}（${raceLabel(character.race)}）
@@ -263,7 +270,7 @@ ${list.map((h) => `   - ${h}`).join('\n')}`
 禁用以下 AI 套话，一律改写为具体细节：不知过了多久、就在这时、空气仿佛凝固、邪魅一笑、磁性的嗓音、深邃的眸子、像断了线的木偶、像一滩烂泥、像受惊的小鹿、前所未有的、灭顶的（快感）、理智的弦断裂/失守、如潮水般袭来。重口行话（肉便器、坏掉、ahegao 等）可用但勿反复堆同一个。${PROSE_STYLE_PROMPTS[proseStyle] ? `\n${PROSE_STYLE_PROMPTS[proseStyle]}` : ''}
 
 【生成要求】
-${typeRule}
+${typeRule}${focusRule}
 
 2. 生成内容必须包含（控制篇幅、不要注水，宁精炼勿冗长）：
    - 陷阱名称（带色情味）
