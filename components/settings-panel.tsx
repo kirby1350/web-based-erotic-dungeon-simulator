@@ -14,9 +14,10 @@ interface SettingsPanelProps {
   settings: AppSettings
   onSettingsChange: (settings: AppSettings) => void
   onClose: () => void
+  canImport?: boolean
 }
 
-export function SettingsPanel({ settings, onSettingsChange, onClose }: SettingsPanelProps) {
+export function SettingsPanel({ settings, onSettingsChange, onClose, canImport = true }: SettingsPanelProps) {
   const [local, setLocal] = useState<AppSettings>({ ...settings })
   const [activeTab, setActiveTab] = useState<'chat' | 'image'>('chat')
   const [dzmmModels, setDzmmModels] = useState<DzmmModel[]>([])
@@ -44,6 +45,7 @@ export function SettingsPanel({ settings, onSettingsChange, onClose }: SettingsP
   }
 
   const handleImportFile = async (file: File) => {
+    if (!canImport) return
     try {
       const text = await file.text()
       importAll(text)
@@ -460,6 +462,8 @@ export function SettingsPanel({ settings, onSettingsChange, onClose }: SettingsP
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
+              disabled={!canImport}
+              title={!canImport ? '先完成或放弃当前回合，再导入存档' : undefined}
               className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-border bg-secondary text-xs text-muted-foreground hover:text-foreground hover:border-primary/50 transition-all"
             >
               <Upload className="w-3.5 h-3.5" />

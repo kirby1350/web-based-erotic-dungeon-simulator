@@ -4,6 +4,8 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  --font-cinzel: 'Cinzel Variable';
+  --font-noto-serif-sc: 'Noto Serif SC Variable';
   --background: oklch(0.10 0.015 260);
   --foreground: oklch(0.92 0.02 75);
   --card: oklch(0.13 0.018 260);

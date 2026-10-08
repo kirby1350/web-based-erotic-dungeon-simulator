@@ -1,0 +1,58 @@
+{
+  "version": "adventure-v3",
+  "source": "synthetic-fixtures",
+  "count": 6,
+  "formatSuccessRate": 0.8333,
+  "stateContradictionRate": 0.3333,
+  "repeatedNarrativeRate": 0.1667,
+  "results": [
+    {
+      "id": "ordinary",
+      "formatValid": true,
+      "contradictions": [],
+      "errors": [],
+      "repetition": 0
+    },
+    {
+      "id": "escape-conflict",
+      "formatValid": true,
+      "contradictions": [
+        "encounter"
+      ],
+      "errors": [],
+      "repetition": 0
+    },
+    {
+      "id": "dispel-failure-conflict",
+      "formatValid": true,
+      "contradictions": [
+        "statusEffects"
+      ],
+      "errors": [],
+      "repetition": 0
+    },
+    {
+      "id": "advance",
+      "formatValid": true,
+      "contradictions": [],
+      "errors": [],
+      "repetition": 0
+    },
+    {
+      "id": "truncated-state",
+      "formatValid": false,
+      "contradictions": [],
+      "errors": [
+        "STATS.结构"
+      ],
+      "repetition": 0
+    },
+    {
+      "id": "repeated-narrative",
+      "formatValid": true,
+      "contradictions": [],
+      "errors": [],
+      "repetition": 1
+    }
+  ]
+}

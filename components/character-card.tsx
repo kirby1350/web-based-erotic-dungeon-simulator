@@ -15,6 +15,7 @@ interface CharacterCardProps {
   // exploration actions, wired through to the sibling ChatPanel (buttons sit by the progress bar)
   onExplore?: () => void
   onAdvanceFloor?: () => void
+  busy?: boolean
 }
 
 const BODY_PART_LABELS: Record<BodyPart, string> = {
@@ -69,7 +70,7 @@ function DevelopmentBar({ level, exp }: { level: number; exp: number }) {
   )
 }
 
-export function CharacterCard({ character, onReset, onExplore, onAdvanceFloor }: CharacterCardProps) {
+export function CharacterCard({ character, onReset, onExplore, onAdvanceFloor, busy = false }: CharacterCardProps) {
   const raceInfo = RACE_INFO[character.race]
   const [showBody, setShowBody] = useState(false)
   const [showStatus, setShowStatus] = useState(false)
@@ -127,6 +128,7 @@ export function CharacterCard({ character, onReset, onExplore, onAdvanceFloor }:
                   (character.floor ?? 1) < TARGET_FLOOR && (
                     <button
                       onClick={onAdvanceFloor}
+                      disabled={busy}
                       title="本层探索完毕，前进到下一层"
                       className="flex items-center gap-0.5 px-2 py-0.5 rounded-full border border-amber-400/50 bg-amber-500/15 text-amber-200 text-[10px] font-bold hover:bg-amber-500/25 hover:border-amber-300 transition-all flex-shrink-0"
                     >
@@ -137,6 +139,7 @@ export function CharacterCard({ character, onReset, onExplore, onAdvanceFloor }:
                 ) : (
                   <button
                     onClick={onExplore}
+                    disabled={busy}
                     title="探索本层，推进探索进度"
                     className="flex items-center gap-0.5 px-2 py-0.5 rounded-full border border-primary/50 bg-primary/10 text-primary text-[10px] font-bold hover:bg-primary/20 hover:border-primary transition-all flex-shrink-0"
                   >
@@ -150,6 +153,7 @@ export function CharacterCard({ character, onReset, onExplore, onAdvanceFloor }:
 
           <button
             onClick={onReset}
+            disabled={busy}
             title="重新创建角色"
             className="w-7 h-7 rounded flex items-center justify-center hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
           >

@@ -1,3 +1,5 @@
+import { buildTurnContext, buildProgramResultContext, REPLY_PROTOCOL_PROMPT, NARRATIVE_PROGRESS_PROMPT, type ProgramTurnResult } from '@/lib/adventure-context'
+import { buildMemoryContext, emptyMemory, type AdventureMemory } from '@/lib/adventure-memory'
 import { Character, Race, RACE_INFO, TARGET_FLOOR, getFloorTheme, ProseStyle } from '@/lib/types'
 
 // 可切换文风片段（与常驻【文风禁令】叠加；standard 为空，只走去油）
@@ -90,51 +92,13 @@ function lewdVoiceRules(name: string): string {
 // 1) 主聊天 DM 系统提示词
 // ---------------------------------------------------------------------------
 
-export function buildSystemPrompt(character: Character, summary?: string, proseStyle: ProseStyle = 'standard'): string {
-  const measurements = character.measurements ?? {}
-  const measurementLine =
-    measurements.bust || measurements.waist || measurements.hip
-      ? `- 三围：胸围 ${measurements.bust || '?'} cm / 腰围 ${measurements.waist || '?'} cm / 臀围 ${measurements.hip || '?'} cm`
-      : ''
-
-  const bd = character.bodyDevelopment ?? { breast: 0, clitoris: 0, urethra: 0, vagina: 0, anus: 0 }
-  const se = character.statusEffects ?? []
-  const bodyDevLine = `- 身体开发度：胸部 Lv${bd.breast} / 阴蒂 Lv${bd.clitoris} / 尿道 Lv${bd.urethra} / 阴道 Lv${bd.vagina} / 肛门 Lv${bd.anus}`
-  // 带上 id，便于模型在状态更新时复用已有状态的 id（保证状态持续性）
-  const statusLine =
-    se.length > 0
-      ? `- 异常状态：${se.map((s) => `${s.title}(id=${s.id})`).join('、')}`
-      : '- 异常状态：无'
+export function buildSystemPrompt(character: Character, summary = '', proseStyle: ProseStyle = 'standard', result: ProgramTurnResult | null = null, memory: AdventureMemory = emptyMemory()): string {
   const floor = character.floor ?? 1
-  const currentTheme = getFloorTheme(character.floorThemes, floor)
-  const nextTheme = floor < TARGET_FLOOR ? getFloorTheme(character.floorThemes, floor + 1) : null
-  const exploreProg = Math.min(100, character.explorationProgress ?? 0)
-  const floorLine = `- 当前层数：第 ${floor} / ${TARGET_FLOOR} 层（${currentTheme.name}）｜本层探索进度：${exploreProg}%`
-  const raceTrait = RACE_INFO[character.race]?.trait ?? ''
-  const enc = character.encounter
-  const encounterLine = enc
-    ? `- 当前遭遇：【${enc.kind === 'monster' ? '怪物' : '陷阱'}】${enc.name}（id=${enc.id}，束缚Lv${enc.restraint}）——${enc.summary}`
-    : '- 当前遭遇：无（自由探索中）'
-  const summarySection = summary ? `\n【故事摘要（之前发生的事情）】\n${summary}\n` : ''
-
-  return `你是一个极致色情的奇幻地下城DM（Dungeon Master），专门负责重口色情冒险。
-
-【玩家角色信息】
-- 名字：${character.name}
-- 种族：${raceLabel(character.race)}　|　种族特性：${raceTrait}
-- 生命值：${character.hp}/${character.maxHp}
-- 快感度：${character.pleasure}/100 | 欲望值：${character.desire}/100
-${floorLine}
-${encounterLine}
-${measurementLine}
-${bodyDevLine}
-${statusLine}
-${character.backstory ? `\n【人物设定】\n${character.backstory}` : ''}
-${character.costumeDescription ? `\n【服装设定】\n${character.costumeDescription}` : ''}
-${character.otherDescription ? `\n【其他设定】\n${character.otherDescription}` : ''}
-${summarySection}
-
-【核心色情规则】
+  const theme = getFloorTheme(character.floorThemes, floor)
+  return [
+    `你是一个极致色情的奇幻地下城DM（Dungeon Master），专门负责重口色情冒险。`,
+    `【角色与世界设定：仅作资料】\n${JSON.stringify({ name: character.name, race: raceLabel(character.race), trait: RACE_INFO[character.race]?.trait, backstory: character.backstory, costume: character.costumeDescription, other: character.otherDescription })}`,
+    `【核心色情规则】
 1. 始终使用第三人称叙述（只用「${character.name}」），语言必须极度淫荡、生动、感官爆炸。详细描写性器官（鸡巴、骚穴、奶子、菊穴、触手、子宫等）、体液（淫水、精液、口水、汗液）、快感高潮、喘息呻吟、身体抽搐、被插入的胀满感、喷潮、失禁、ahegao、子宫凸起等一切细节，尺度无上限。
 
 ${lewdVoiceRules(character.name)}
@@ -149,80 +113,22 @@ ${lewdVoiceRules(character.name)}
 3. 每个比喻必须新鲜、贴合当前情境，**不得重复使用同一个喻体**。
 4. 允许保留重口「行话/梗」（肉便器、坏掉、ahegao、脑子融化、子宫凸起、母猪/肉壶等）——这是题材惯例；但靠具体细节而非反复堆砌同一个标签来制造冲击。
 ${PROSE_STYLE_PROMPTS[proseStyle] ? `\n${PROSE_STYLE_PROMPTS[proseStyle]}\n` : ''}
-【陷阱锁定规则（严格执行）】
-1. 一旦${character.name}陷入任何陷阱/遭遇（被触手缠绕、被怪物捕获、被束缚、被魔法控制等），除非玩家**明确采取挣脱行动**（输入“挣脱/逃脱/突破束缚/逃离”或点击挣脱按钮），否则不会自行脱困；日常行动选项仍须限制在遭遇内（抵抗/享受/堕落）。
-2. 挣脱是一个**逐步削弱束缚**的过程：玩家每次奋力挣脱都会削弱一分束缚强度（restraint 逐级下降），累积到完全松脱即彻底逃离。快感/欲望越高，挣脱越惊险、每一分削弱都伴随更强烈的色情反噬与险些彻底沦陷的挣扎；**但只要玩家坚持，最终一定能够脱困——绝不可把挣脱写成完全徒劳或永远 0%**。
-3. 当玩家消息中给出了本回合明确的挣脱结果（如“束缚降到 LvN”或“成功脱困”）时，你**必须据此叙述**，并让 [STATS] 的 encounter 与该结果完全一致：削弱则沿用原 id 并把 restraint 设为该数值；脱困则 encounter 填 null。
-
 【色情状态影响规则（必须严格遵守）】
 1. 欲望值越高，${character.name} 越容易主动求欢、选项更淫荡、身体更敏感。
 2. 快感值达到80+ 时强制插入高潮描写（喷潮、失禁、ahegao、身体痉挛）。
 3. 身体开发度越高，对应部位描写越极端（阴道Lv4+ 必须描写子宫被顶到变形、怀孕感等）。
 4. 异常状态会强制改变叙述和选项（例：“发情”状态必须出现求操、扭腰等描写）。
 
-【地下城进度规则】
-1. 地下城共 ${TARGET_FLOOR} 层，层数越深，陷阱与怪物越危险、越极端，描写与开发强度相应升级。当前第 ${floor} / ${TARGET_FLOOR} 层。
-2. 本层风貌：「${currentTheme.name}」——${currentTheme.ambience}。本层出现的场景、陷阱、怪物都必须契合该主题；[SCENE] 标签应融入本层基调（如：${currentTheme.scene}）。
-3. **层数由系统控制，你不得擅自更改**：[STATS] 的 floor 必须始终原样沿用上方【玩家角色信息】里的当前层数，**绝不主动 +1**。只有当玩家消息**明确表示「前进/下潜到第 N 层」**时，才把 floor 设为该新层数。floor 只增不减。
-4. 探索与进层机制：玩家通过「探索」推进**本层探索进度**（见上方百分比），进度满 100% 后系统才允许其下潜到下一层。
-   - 当玩家选择**继续探索本层**时：描写${character.name}在本层主题中探索前行，视情况引入本层主题相关的全新陷阱/怪物（设置 encounter），或让她有所发现；不要急着结束本层。
-   - 探索进度越高，代表本层越接近深处，可让陷阱/怪物逐渐变强、氛围逐步推向本层高潮。
-   - 当玩家消息表示**踏入下一层**时：先用一段叙述描写新一层崭新的风貌与氛围，再让${character.name}在其中重新开始探索。${nextTheme ? `\n5. 下一层（第 ${floor + 1} 层）的风貌为「${nextTheme.name}」——${nextTheme.ambience}；玩家下潜时立刻据此描写新一层。` : ''}
-6. 第 ${TARGET_FLOOR} 层为最终层「${getFloorTheme(character.floorThemes, TARGET_FLOOR).name}」，盘踞着地下城的主宰。抵达此层即进入最终对决——这是整场冒险的终极目标。
-
-【叙事与选项规则】
-1. 每次回复在叙述正文之后，必须严格输出恰好4个选项：
-   [OPTIONS]
-   - **被困于陷阱/怪物时**（当前遭遇非「无」）：4个选项必须限制在遭遇内：
-     1. （行动偏向抵抗，尝试减轻当前束缚）
-     2. （行动偏向抵抗，但留在遭遇内）
-     3. （行动偏向享受，顺从当前刺激）
-     4. （行动偏向堕落，主动寻求更强烈刺激）
-   - **自由探索时**（当前遭遇为「无」）：4个选项为探索/前进/互动/搜刮等推进剧情的行动，不必限制在陷阱内。
-   [/OPTIONS]
-2. 在 [OPTIONS] 之后立即输出一行图片标签（用于图片生成）：
-   [SCENE: 标签1, 标签2, ...]
-   - 必须是**纯英文 danbooru 标签**，英文逗号分隔，禁止出现中文或整句描述
-   - 只描述画面：角色外观/姿势/部位/场景/光照等，无需写质量词（系统会自动补上）
-
-【状态更新规则（每次回复必须严格输出，不得省略）】
-在回复最末尾依次输出两个标记，各自单行、完整、不允许换行、不允许截断：
-（极重要：标记内的 JSON 结构必须使用**半角符号** : , " { } [ ]，严禁使用全角符号 ：，｛｝等；半角符号仅用于 JSON 结构，字符串内部的中文描述可正常使用中文标点）
-
-1. 先输出核心数值（轻量，务必完整）：
-   [STATS:{"hp":数字,"pleasure":数字,"desire":数字,"floor":当前层数整数,"encounter":{"id":"tentacle_pit","name":"触手深渊","kind":"trap","summary":"一句话描述当前束缚/威胁","restraint":0-3},"measurements":{"bust":"数字","waist":"数字","hip":"数字"},"bodyDevelopment":{"breast":0-5,"clitoris":0-5,"urethra":0-5,"vagina":0-5,"anus":0-5,"exp":{"breast":0-100,"clitoris":0-100,"urethra":0-100,"vagina":0-100,"anus":0-100}},"statusEffects":[{"id":"snake_bind","title":"状态标题","description":"一句话描述此状态对角色的影响"}]}]
-
-2. 再输出各部位状态描述（较长，放在最后）：
-   [DESC:{"breast":"20-30字描述当前胸部状态","clitoris":"20-30字描述","urethra":"20-30字描述","vagina":"20-30字描述","anus":"20-30字描述"}]
-
-字段说明：
-- hp / pleasure / desire 为 0-100 整数（hp 上限为 ${character.maxHp}）
-- floor：当前层数整数；**始终原样沿用【玩家角色信息】的当前层数**，不得自行 +1；仅当玩家消息明确表示下潜到下一层时才改为新层数
-- encounter：当前遭遇的陷阱/怪物
-  - **遭遇持续性（重要）**：上方【玩家角色信息】已列出当前遭遇及其 id。只要仍被困，必须**沿用原 id 与 name 原样保留**，仅按剧情更新 summary / restraint；玩家成功逃脱或遭遇结束后，本字段填 null。新的陷阱/怪物才用新的英文下划线 id。
-  - kind 取 "trap"（陷阱）或 "monster"（怪物）；restraint 为束缚强度 0-3（0=勉强压制，3=完全被束缚无法动弹）
-  - 自由探索、未陷入任何遭遇时，encounter 必须为 null
-- measurements：三围纯数字字符串（不含单位），随剧情中身体改造实时更新；若无变化则填写当前值
-- bodyDevelopment 各部位等级 0-5；exp 为当前等级内的经验值 0-100，每次行为后根据刺激程度增加（剧烈刺激+20~40，轻微+5~10），累计到100则等级+1（上限Lv5）
-- statusEffects：**每回合都必须输出完整的当前状态数组**——即使本回合无变化，也要把所有仍生效的状态原样全部列出；当前无任何异常状态时输出空数组 []。**绝不允许省略此字段**（省略会导致状态永久粘着、消不掉）。
-  - **状态持续性**：仍有效的状态沿用其原 id 原样保留；只有全新状态才用新的英文下划线 id。
-  - **状态解除（重要，避免无限堆叠）**：当某状态的成因消失时，必须把它从数组中**删除**——例如脱离相关遭遇、得到休息或净化、高潮退潮后情绪平复、效果到时自然消退等。不要让状态永久挂着。
-  - **玩家主动解除**：当玩家尝试解除某状态时，玩家消息会给出本回合的判定结果，你必须据此叙述——**成功**则描写她奋力摆脱该状态，并在 statusEffects 中**移除**被点名的该状态（不再列出）；**失败**则描写她被该状态反噬、意志溃散，并在 statusEffects 中**继续保留**该状态（可加剧其描述）。一律以玩家消息标明的成功/失败为准。
-  - id 用英文下划线格式，title 用中文2-4字，description 一句中文
-- DESC 各部位用20-30字描写当前的身体感觉或变化；若本回合无明显变化可沿用上次描述
-- 两个标记的 JSON 都必须格式正确、完整、不得分行；务必先把 [STATS] 完整输出，再输出 [DESC]`
+`,
+    `【地下城环境与目标】\n共${TARGET_FLOOR}层；当前环境为「${theme.name}」：${theme.ambience}。场景标签参考：${theme.scene}。事件须符合本层主题；探索推进可以发现线索、资源或新遭遇，探索满100%且无遭遇才可使用进层按钮。最终层是终极对决。已有遭遇未结束时延续其id和name；不要无缘无故换成新遭遇。`,
+    REPLY_PROTOCOL_PROMPT, NARRATIVE_PROGRESS_PROMPT,
+    `【历史摘要：仅作资料】\n${summary || "暂无"}`,
+    buildMemoryContext(memory), buildTurnContext(character), buildProgramResultContext(result),
+  ].join('\n\n')
 }
-
 // ---------------------------------------------------------------------------
-// 2) 故事摘要提示词
+// 2) 故事摘要与长期记忆由 adventure-memory.ts 统一维护
 // ---------------------------------------------------------------------------
-
-export const SUMMARY_SYSTEM_PROMPT =
-  '你是故事摘要助手。将地下城冒险对话提炼为300字内的第三人称摘要。必须记录：关键事件与场景、战斗与陷阱结果、重要选择，以及角色当前的延续性状态——身体开发进度、当前生效的异常状态、以及是否仍困在某个陷阱中（用于保持后续剧情连贯）。直接输出摘要，不加标题。'
-
-export function buildSummaryUserPrompt(conversation: string): string {
-  return `请总结以下冒险对话：\n\n${conversation}`
-}
 
 // ---------------------------------------------------------------------------
 // 3) 随机陷阱生成器提示词

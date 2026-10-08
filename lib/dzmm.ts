@@ -84,19 +84,34 @@ export interface ChatStreamOpts {
 // Stream assistant text, invoking onDelta with incremental chunks.
 // Uses window.dzmm.completions on-platform, else the /api/chat SSE route.
 export async function chatStream(opts: ChatStreamOpts, onDelta: (delta: string) => void): Promise<void> {
+  opts.signal?.throwIfAborted()
   if (await dzmmReady()) {
     // The platform SDK takes a flat message list; mirror the rewrite and send
     // the system prompt as a leading user turn (safest across models).
     const messages = opts.messages.map((m) => (m.role === 'system' ? { ...m, role: 'user' } : m))
     let prev = ''
-    await window.dzmm!.completions(
-      { model: opts.model, messages, maxTokens: DZMM_MAX_TOKENS },
-      (fullText) => {
-        const delta = fullText.slice(prev.length)
-        prev = fullText
-        if (delta) onDelta(delta)
-      },
-    )
+    opts.signal?.throwIfAborted()
+    await new Promise<void>((resolve, reject) => {
+      let settled = false
+      const finish = (error?: unknown) => {
+        if (settled) return
+        settled = true
+        opts.signal?.removeEventListener('abort', abort)
+        if (error) reject(error)
+        else resolve()
+      }
+      const abort = () => finish(new DOMException('Aborted', 'AbortError'))
+      opts.signal?.addEventListener('abort', abort, { once: true })
+      Promise.resolve().then(() => window.dzmm!.completions(
+        { model: opts.model, messages, maxTokens: DZMM_MAX_TOKENS },
+        (fullText) => {
+          if (settled || opts.signal?.aborted) return
+          const delta = fullText.slice(prev.length)
+          prev = fullText
+          if (delta) onDelta(delta)
+        },
+      )).then(() => finish(), finish)
+    })
     return
   }
 

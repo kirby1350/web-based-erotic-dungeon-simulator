@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
           stream: true,
           temperature: CHAT_TEMPERATURE,
         }),
+        signal: req.signal,
       })
       if (!response.ok) {
         const err = await response.text()

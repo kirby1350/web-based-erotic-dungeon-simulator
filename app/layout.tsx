@@ -1,19 +1,8 @@
 import type { Metadata } from 'next'
-import { Cinzel, Noto_Serif_SC } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import '@fontsource-variable/cinzel'
+import '@fontsource-variable/noto-serif-sc'
 import './globals.css'
-
-const _cinzel = Cinzel({
-  subsets: ['latin'],
-  variable: '--font-cinzel',
-  weight: ['400', '600', '700'],
-})
-
-const _notoSerifSC = Noto_Serif_SC({
-  subsets: ['latin'],
-  variable: '--font-noto-serif-sc',
-  weight: ['400', '600', '700'],
-})
 
 export const metadata: Metadata = {
   title: '地下城探险模拟器',
@@ -27,7 +16,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
-      <body className={`${_cinzel.variable} ${_notoSerifSC.variable} font-sans antialiased`}>
+      <body className="font-sans antialiased">
         {children}
         <Analytics />
       </body>

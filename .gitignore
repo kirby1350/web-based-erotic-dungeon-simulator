@@ -18,3 +18,5 @@ node_modules/
 *.tsbuildinfo
 .pnpm-store/
 next-env.d.ts
+test-results/
+playwright-report/

@@ -72,6 +72,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   timestamp: number
+  turnId?: string
 }
 
 export interface GeneratedImage {
@@ -199,6 +200,8 @@ export const CHAT_MODELS: ChatModelInfo[] = [
   // 额外
   { value: 'Apex-Neo-0213-16k', label: 'Apex-Neo-0213-16k', group: '其他', provider: 'default' },
   // Grok 系列
+  { value: 'grok-4.7', label: 'Grok 4.7', group: 'Grok (xAI)', provider: 'grok' },
+  { value: 'grok-4.3', label: 'Grok 4.3', group: 'Grok (xAI)', provider: 'grok' },
   { value: 'grok-4-latest', label: 'Grok 4 Latest', group: 'Grok (xAI)', provider: 'grok' },
   { value: 'grok-3', label: 'Grok 3', group: 'Grok (xAI)', provider: 'grok' },
   { value: 'grok-3-mini', label: 'Grok 3 Mini', group: 'Grok (xAI)', provider: 'grok' },
@@ -332,6 +335,9 @@ export interface CharacterPreset {
 export interface GameSession {
   messages: ChatMessage[]
   summary: string
+  memory?: import('@/lib/adventure-memory').AdventureMemory
+  pendingTurn?: import('@/lib/turn-engine').PendingTurn | null
+  turns?: import('@/lib/turn-engine').TurnRecord[]
 }
 
 // Preset trap "seeds" — pick one to steer the random generator toward a type,
